@@ -34,6 +34,7 @@
         #toast { position:absolute; top:112px; left:50%; transform:translateX(-50%); padding:8px 20px; border-radius:10px; font-weight:700; font-size:16px; color:#fde68a; background:rgba(2,6,23,0.72); border:1px solid rgba(255,255,255,0.15); opacity:0; transition:opacity 0.3s; white-space:nowrap; }
         #toast.on { opacity:1; }
         #air { position:absolute; top:14px; right:14px; padding:6px 12px; border-radius:10px; font-size:12px; font-weight:700; color:#fde68a; background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.07); }
+        #build { position:absolute; top:140px; left:50%; transform:translateX(-50%); padding:6px 16px; border-radius:10px; font-weight:700; font-size:15px; color:#9fd8ff; background:rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.15); display:none; }
         #crosshair { position:absolute; top:50%; left:50%; width:22px; height:22px; transform:translate(-50%,-50%); opacity:0.9; }
         #crosshair::before, #crosshair::after { content:''; position:absolute; background:rgba(255,255,255,0.85); box-shadow:0 0 3px rgba(0,0,0,0.6); }
         #crosshair::before { left:50%; top:0; width:2px; height:100%; transform:translateX(-50%); }
@@ -89,7 +90,8 @@
         #inventory.hidden { display:none; }
         #inventory h3 { font-size:22px; font-weight:800; color:#e2e8f0; margin:0 0 16px; }
         #inventory h3 span { font-size:13px; color:#fbbf24; font-weight:600; }
-        .invrow { display:flex; gap:16px; }
+        .invrow { display:flex; gap:14px; flex-wrap:wrap; justify-content:center; max-width:720px; }
+        .inv-tile small { font-size:11px; opacity:0.7; font-weight:600; }
         .inv-tile { min-width:150px; padding:18px 20px; border-radius:12px; background:rgba(15,23,42,0.88); border:2px solid rgba(255,255,255,0.18); color:#fff; font-weight:700; font-size:16px; cursor:pointer; text-align:center; }
         .inv-tile.sel { border-color:#60a5fa; box-shadow:0 0 16px rgba(96,165,250,0.5); }
         .inv-tile.locked { opacity:0.4; }
@@ -103,6 +105,7 @@
         <div id="scoreboard"><span class="red" id="score-red">0</span><span class="sep">RED&nbsp;·&nbsp;BLUE</span><span class="blue" id="score-blue">0</span><span class="goal">first to 3</span></div>
         <div id="healthbar"><div id="hp-fill"></div><div id="ar-fill"></div><span id="hp-label">100</span></div>
         <div id="carry-status"></div>
+        <div id="build"></div>
         <div id="toast"></div>
         <div id="weapon"></div>
         <div id="ammo">🚀 Rocket ready <span class="g">(R)</span></div>
@@ -139,8 +142,8 @@
     <div class="overlay hidden" id="overlay-win"><h2 id="win-title">Blue team wins!</h2><p id="win-sub">3 flags captured.</p><button id="btn-restart">Play again</button></div>
     <div id="inventory" class="hidden">
         <h3>INVENTORY <span>· time slowed ×4</span></h3>
-        <div class="invrow"><div class="inv-tile sel" id="inv-pistol">1 · Pistol</div><div class="inv-tile locked" id="inv-mg">2 · Machine&nbsp;Gun</div></div>
-        <div class="invhint">press 1 / 2 (or tap) · I or Esc to close</div>
+        <div class="invrow"><div class="inv-tile sel" id="inv-pistol">1 · Pistol</div><div class="inv-tile locked" id="inv-mg">2 · Machine&nbsp;Gun</div><div class="inv-tile" id="inv-wall">3 · 🧱 Wall<br><small>5s</small></div><div class="inv-tile" id="inv-pillbox">4 · 📦 Pillbox<br><small>10s · auto-gun</small></div></div>
+        <div class="invhint">press 1 / 2 weapons · 3 / 4 build (or tap) · I or Esc to close</div>
     </div>
     <div id="fatal"></div>
 
@@ -163,6 +166,7 @@
         const ROCKET_WIND = 0.45;                 // enemy launcher telegraph (muzzle flash) before launch
         const THREAT_RANGE = 1500, MAX_RED = 7;   // difficulty rises as you near the Red flag
         const MAX_HP = 100, BULLET_DMG = 34, ARMOUR_MAX = 100, INV_TIMESCALE = 0.25, AIRSTRIKES = 3, BOMB_BLAST = 120;
+        const WALL_TIME = 5, PILLBOX_TIME = 10, BUILD_DIST = 30, TURRET_RANGE = 380, TURRET_CD = 0.7;   // buildable defenses
         const PICKUP_DIST = 18, BASE_R = 44, WIN_SCORE = 3, TAG_TIME = 1.0, FLAG_DROP_TIME = 5.0;
         const CAM_DIST = 56, CAM_HEIGHT = 64, FPV_MAX = 5.0;
         const SENS_YAW = 0.0023, SENS_PITCH = 0.0021, PITCH_MIN = -0.95, PITCH_MAX = 0.95;
@@ -279,7 +283,8 @@
             launchTube:new THREE.CylinderGeometry(3,3,24,12), launchWar:new THREE.ConeGeometry(3.3,7,12), launchGrip:new THREE.BoxGeometry(1.8,4,2.2), launchSight:new THREE.BoxGeometry(1.2,2.4,1.2),
             mgBody:new THREE.BoxGeometry(3.6,3.6,17), mgBarrel:new THREE.CylinderGeometry(0.7,0.7,12,8), mgRecv:new THREE.BoxGeometry(3.2,4.2,6), mgAmmo:new THREE.BoxGeometry(5,5,6), mgBelt:new THREE.BoxGeometry(8,1.3,2.6),
             bldgBig:new THREE.BoxGeometry(34,42,30), bldgSm:new THREE.BoxGeometry(24,30,24), roofFlat:new THREE.BoxGeometry(37,3,33), armourV:new THREE.BoxGeometry(11,12,5),
-            planeFus:new THREE.CylinderGeometry(3,3,30,8), planeWing:new THREE.BoxGeometry(46,1.6,8), planeTail:new THREE.BoxGeometry(14,1.2,5), planeFin:new THREE.BoxGeometry(1.4,7,5), bomb:new THREE.SphereGeometry(3,8,7) };
+            planeFus:new THREE.CylinderGeometry(3,3,30,8), planeWing:new THREE.BoxGeometry(46,1.6,8), planeTail:new THREE.BoxGeometry(14,1.2,5), planeFin:new THREE.BoxGeometry(1.4,7,5), bomb:new THREE.SphereGeometry(3,8,7),
+            wall:new THREE.BoxGeometry(34,26,7), pillBase:new THREE.BoxGeometry(24,15,24), pillRoof:new THREE.BoxGeometry(27,4,27), pillGun:new THREE.BoxGeometry(2.6,2.6,13) };
         const M={ wall:new THREE.MeshLambertMaterial({color:0xefe2c0}), roof:new THREE.MeshLambertMaterial({color:0xb5552f}), rock:new THREE.MeshLambertMaterial({color:0x9aa3ab}),
             trunk:new THREE.MeshLambertMaterial({color:0x7a5230}), leaf:new THREE.MeshLambertMaterial({color:0x3f9d4f}), leafDk:new THREE.MeshLambertMaterial({color:0x2f7d3c}),
             blob:new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.22,depthWrite:false}), skin:new THREE.MeshLambertMaterial({color:0xe8b48c}), dark:new THREE.MeshLambertMaterial({color:0x23262e}),
@@ -289,7 +294,8 @@
             redBase:new THREE.MeshBasicMaterial({color:0xef4444,transparent:true,opacity:0.30,depthWrite:false}), blueBase:new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:0.30,depthWrite:false}),
             redRing:new THREE.MeshBasicMaterial({color:0xf87171}), blueRing:new THREE.MeshBasicMaterial({color:0x60a5fa}),
             bulletRed:new THREE.MeshBasicMaterial({color:0xff7b6b}), bulletBlue:new THREE.MeshBasicMaterial({color:0x7cc0ff}), rktBody:new THREE.MeshLambertMaterial({color:0x55606e}), rktHead:new THREE.MeshLambertMaterial({color:0xffae3b}),
-            concrete:new THREE.MeshLambertMaterial({color:0xc2bba8}), concreteDk:new THREE.MeshLambertMaterial({color:0x8f8773}), armour:new THREE.MeshLambertMaterial({color:0x6fa8d6}) };
+            concrete:new THREE.MeshLambertMaterial({color:0xc2bba8}), concreteDk:new THREE.MeshLambertMaterial({color:0x8f8773}), armour:new THREE.MeshLambertMaterial({color:0x6fa8d6}),
+            ghost:new THREE.MeshLambertMaterial({color:0x8fd0ff,transparent:true,opacity:0.45,depthWrite:false}) };
         function teamAccent(t){ return t==='red'?M.red:M.blue; }
         const GLOW_TEX=(function(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); const gr=g.createRadialGradient(32,32,0,32,32,32);
             gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.4,'rgba(255,255,255,0.6)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c); })();
@@ -419,6 +425,7 @@
             const b={x:ox,z:oz,y:oy,vx:d.x*BULLET_SPEED,vy:d.y*BULLET_SPEED,vz:d.z*BULLET_SPEED,team:shooter.team,dist:0,mesh:grp}; bullets.push(b); spawnEffect(ox,oy,oz,shooter.team==='red'?0xff7b6b:0x7cc0ff,8,3,0.12); return b; }
         function removeBullet(i){ scene.remove(bullets[i].mesh); bullets[i].mesh.children[1].material.dispose(); bullets.splice(i,1); }
         const rockets=[];
+        const turrets=[], builtStructures=[]; let building=null;   // defenses: pillbox turrets + built walls/boxes
         let camRocket=null, camHold=0, camHoldCamX=0, camHoldCamY=0, camHoldCamZ=0, camHoldTgt=null;   // rocket-follow camera
         function buildRocketMesh(){ const g=new THREE.Group(); g.rotation.order='YXZ'; const body=new THREE.Mesh(G.rktBody,M.rktBody); body.rotation.x=Math.PI/2; g.add(body);
             const nose=new THREE.Mesh(G.rktNose,M.rktHead); nose.rotation.x=Math.PI/2; nose.position.z=9; g.add(nose);
@@ -464,6 +471,27 @@
             for(let i=bombs.length-1;i>=0;i--){ const bm=bombs[i]; bm.vy-=300*dt; bm.y+=bm.vy*dt; bm.mesh.position.set(bm.x,bm.y,bm.z);
                 if(bm.y<=terrainH(bm.tgt.x,bm.tgt.z)){ explodeBomb(bm.tgt.x,bm.tgt.z); scene.remove(bm.mesh); if(bm.marker) scene.remove(bm.marker); bombs.splice(i,1); } } }
 
+        // ---- buildable defenses (from the inventory): wall (5s) + auto-gun pillbox (10s) ----
+        function startBuild(type){ if(!human||building) return; const f={x:Math.sin(human.yaw),z:Math.cos(human.yaw)}; const c=clampToIsland({x:human.x+f.x*BUILD_DIST,z:human.z+f.z*BUILD_DIST},PLAYER_R+8); const by=terrainH(c.x,c.z);
+            const ghost=new THREE.Mesh(type==='wall'?G.wall:G.pillBase,M.ghost); ghost.rotation.y=(type==='wall'?human.yaw:0); ghost.scale.y=0.05; ghost.position.set(c.x,by+(type==='wall'?26:15)*0.025,c.z); scene.add(ghost);
+            building={type:type,x:c.x,y:by,z:c.z,yaw:(type==='wall'?human.yaw:0),t:0,dur:(type==='wall'?WALL_TIME:PILLBOX_TIME),ghost:ghost,ox:human.x,oz:human.z}; toast('🔨 Building '+(type==='wall'?'wall':'pillbox')+' — stay close'); }
+        function cancelBuild(){ if(!building) return; scene.remove(building.ghost); building=null; toast('Build cancelled'); }
+        function updateBuild(dt){ if(!building) return; const b=building; if(!human||human.tag>0||(human.x-b.ox)**2+(human.z-b.oz)**2>45*45){ cancelBuild(); return; }
+            b.t+=dt; const p=Math.min(1,b.t/b.dur),H=(b.type==='wall'?26:15); b.ghost.scale.y=Math.max(0.05,p); b.ghost.position.y=b.y+H*b.ghost.scale.y/2;
+            if(Math.random()<0.4) spawnEffect(b.x+(Math.random()-0.5)*20,b.y+6,b.z+(Math.random()-0.5)*20,0x9fd8ff,4,12,0.3);
+            if(b.t>=b.dur) completeBuild(); }
+        function completeBuild(){ const b=building; building=null; scene.remove(b.ghost);
+            const grp=new THREE.Group(); grp.position.set(b.x,b.y,b.z); grp.rotation.y=b.yaw; const mat=M.concrete.clone(); let r,hp,gunRef=null;
+            if(b.type==='wall'){ const w=new THREE.Mesh(G.wall,mat); w.position.y=13; grp.add(w); r=16; hp=90; }
+            else { const base=new THREE.Mesh(G.pillBase,mat); base.position.y=7.5; grp.add(base); const roof=new THREE.Mesh(G.pillRoof,M.concreteDk.clone()); roof.position.y=16; grp.add(roof);
+                gunRef=new THREE.Group(); gunRef.position.set(0,13,0); const barrel=new THREE.Mesh(G.pillGun,M.gun); barrel.position.z=7; gunRef.add(barrel); grp.add(gunRef); r=14; hp=120; }
+            scene.add(grp); const obs={x:b.x,z:b.z,y:b.y,r:r,grp:grp,mats:[mat],baseCols:[mat.color.clone()],hp:hp,maxhp:hp,kind:'building'}; OBSTACLES.push(obs); builtStructures.push({grp:grp,obs:obs});
+            if(gunRef) turrets.push({x:b.x,y:b.y,z:b.z,cd:1.0,gun:gunRef,obs:obs});
+            spawnEffect(b.x,b.y+12,b.z,0x9fd8ff,8,42,0.5); toast((b.type==='wall'?'🧱 Wall':'📦 Pillbox')+' built!'); }
+        function updateTurrets(dt){ for(let i=turrets.length-1;i>=0;i--){ const t=turrets[i]; if(t.obs&&t.obs.broken){ turrets.splice(i,1); continue; } if(t.cd>0) t.cd-=dt;
+            let best=null,bd=TURRET_RANGE*TURRET_RANGE; for(const p of players){ if(p.team==='blue'||p.tag>0) continue; const dd=(p.x-t.x)**2+(p.z-t.z)**2; if(dd<bd){ bd=dd; best=p; } }
+            if(best){ const yaw=Math.atan2(best.x-t.x,best.z-t.z); if(t.gun) t.gun.rotation.y=yaw; if(t.cd<=0){ fireBullet({team:'blue',x:t.x,z:t.z,y:t.y+8,yaw:yaw,pitch:0,crouch:false}); t.cd=TURRET_CD; } } } }
+
         // ===================== INPUT =====================
         const keys={f:false,b:false,l:false,r:false}; let firing=false, gDown=false, spaceDown=false, cDown=false, jDown=false, mDown=false, iDown=false, bDown=false;
         let running=false, gameOver=false, viewMode='third', fpvBullet=null, fpvTimer=0, inventoryOpen=false;
@@ -499,6 +527,8 @@
             case 'KeyI': if(down){ if(running&&!iDown){ iDown=true; if(inventoryOpen) closeInventory(); else openInventory(); } } else iDown=false; break;
             case 'Digit1': if(down&&inventoryOpen) setWeapon('pistol'); break;
             case 'Digit2': if(down&&inventoryOpen) setWeapon('mg'); break;
+            case 'Digit3': if(down&&inventoryOpen){ startBuild('wall'); closeInventory(); } break;
+            case 'Digit4': if(down&&inventoryOpen){ startBuild('pillbox'); closeInventory(); } break;
             default: return; } e.preventDefault(); }
         addEventListener('keydown', e=>key(e,true)); addEventListener('keyup', e=>key(e,false));
         addEventListener('blur', ()=>{ keys.f=keys.b=keys.l=keys.r=false; firing=false; gDown=false; spaceDown=false; cDown=false; jDown=false; });
@@ -507,6 +537,8 @@
         document.getElementById('btn-restart').addEventListener('click', ev=>{ ev.stopPropagation(); resetMatch(); });
         document.getElementById('inv-pistol').addEventListener('click', ()=>setWeapon('pistol'));
         document.getElementById('inv-mg').addEventListener('click', ()=>setWeapon('mg'));
+        document.getElementById('inv-wall').addEventListener('click', ()=>{ startBuild('wall'); closeInventory(); });
+        document.getElementById('inv-pillbox').addEventListener('click', ()=>{ startBuild('pillbox'); closeInventory(); });
         addEventListener('resize', ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
 
         // ---- touch controls (pointer events; multi-touch via pointerId) ----
@@ -612,7 +644,7 @@
                 if(!boom) for(const o of OBSTACLES){ if((r.x-o.x)**2+(r.z-o.z)**2<(o.r+ROCKET_R)**2){ boom=true; break; } }
                 if(!boom) for(const p of players){ if(p.team===r.team||p.tag>0) continue; if((r.x-p.x)**2+(r.z-p.z)**2<(PLAYER_R+ROCKET_R)**2){ boom=true; break; } }
                 if(boom){ if(r===camRocket){ camHold=0.9; camHoldCamX=camera.position.x; camHoldCamY=camera.position.y; camHoldCamZ=camera.position.z; camHoldTgt={x:r.x,y:terrainH(r.x,r.z)+8,z:r.z}; camRocket=null; } explodeRocket(r.x,r.y,r.z,r.team); removeRocket(i); } }
-            updateAirstrikes(dt);
+            updateAirstrikes(dt); updateBuild(dt); updateTurrets(dt);
             if(viewMode==='fpv'){ fpvTimer-=dt; if(fpvTimer<=0||!fpvBullet||bullets.indexOf(fpvBullet)===-1){ viewMode='third'; fpvBullet=null; } }
             for(const pk of pickups){ if(pk.taken) continue; pk.grp.rotation.y+=dt*1.1; pk.grp.position.y=pk.y+11+Math.sin(timeNow*2)*2;
                 if(human&&human.tag<=0&&(human.x-pk.x)**2+(human.z-pk.z)**2<28*28){ pk.taken=true; pk.grp.visible=false;
@@ -643,12 +675,13 @@
             camera.position.set(camX,camY,camZ); const lookY=human.y+BODY_OFF+4-cr+human.pitch*70; camera.lookAt(human.x+f.x*44,lookY,human.z+f.z*44); }
 
         // ===================== HUD =====================
-        const elScoreR=document.getElementById('score-red'),elScoreB=document.getElementById('score-blue'),elCarry=document.getElementById('carry-status'),elHeading=document.getElementById('heading'),elAmmo=document.getElementById('ammo'),elWeapon=document.getElementById('weapon'),elAir=document.getElementById('air'),elHpFill=document.getElementById('hp-fill'),elArFill=document.getElementById('ar-fill'),elHpLabel=document.getElementById('hp-label');
+        const elScoreR=document.getElementById('score-red'),elScoreB=document.getElementById('score-blue'),elCarry=document.getElementById('carry-status'),elHeading=document.getElementById('heading'),elAmmo=document.getElementById('ammo'),elWeapon=document.getElementById('weapon'),elAir=document.getElementById('air'),elHpFill=document.getElementById('hp-fill'),elArFill=document.getElementById('ar-fill'),elHpLabel=document.getElementById('hp-label'),elBuild=document.getElementById('build');
         function compass(yaw){ const dirs=['S','SE','E','NE','N','NW','W','SW'],a=((Math.atan2(Math.sin(yaw),Math.cos(yaw))+Math.PI*2)%(Math.PI*2)); return dirs[Math.round(a/(Math.PI/4))%8]; }
         function updateHUD(){ elScoreR.textContent=score.red; elScoreB.textContent=score.blue;
             if(human){ elHeading.textContent=compass(human.yaw); const cd=human.rocketCD; if(cd>0.05){ elAmmo.classList.add('empty'); elAmmo.innerHTML='🚀 Reloading '+Math.ceil(cd)+'s'; } else { elAmmo.classList.remove('empty'); elAmmo.innerHTML='🚀 Rocket ready <span class="g">(R)</span>'; }
                 if(human.weapon==='mg'){ elWeapon.style.display='block'; elWeapon.textContent='🔫 MG  '+Math.floor(human.mgAmmo)+'/'+MG_MAX; } else if(human.hasMG){ elWeapon.style.display='block'; elWeapon.textContent='🔫 Pistol — M/WPN to switch'; } else elWeapon.style.display='none';
                 elAir.textContent='✈️ '+human.airstrikes;
+                if(building){ elBuild.style.display='block'; elBuild.textContent='🔨 '+(building.type==='wall'?'Wall':'Pillbox')+'  '+Math.ceil(building.dur-building.t)+'s'; } else elBuild.style.display='none';
                 const hpc=Math.max(0,Math.round(human.hp)); elHpFill.style.width=hpc+'%'; elHpFill.style.background=hpc>50?'#46d65f':(hpc>25?'#f5c542':'#ef4444'); elArFill.style.width=Math.max(0,Math.round(human.armour))+'%'; elHpLabel.textContent=hpc; }
             if(human&&human.carrying){ elCarry.style.display='block'; elCarry.style.color='#fca5a5'; elCarry.textContent='🚩 You have the RED flag — run it home to the north!'; } else elCarry.style.display='none'; }
         // ---- minimap (Zanzibar shape, north up): island, hills, bases, flags, you ----
@@ -670,6 +703,8 @@
             document.getElementById('win-title').textContent=(team==='blue'?'Blue team wins!':'Red team wins!'); document.getElementById('win-title').style.color=team==='blue'?'#60a5fa':'#f87171';
             document.getElementById('win-sub').textContent=WIN_SCORE+' flags captured. Great running!'; elWin.classList.remove('hidden'); }
         function resetMatch(){ while(bullets.length) removeBullet(bullets.length-1); while(rockets.length) removeRocket(rockets.length-1); while(effects.length){ const e=effects.pop(); scene.remove(e.spr); e.spr.material.dispose(); }
+            if(building){ scene.remove(building.ghost); building=null; }
+            for(const bs of builtStructures){ scene.remove(bs.grp); const oi=OBSTACLES.indexOf(bs.obs); if(oi>=0) OBSTACLES.splice(oi,1); } builtStructures.length=0; turrets.length=0;
             for(let i=players.length-1;i>=0;i--){ if(players[i].name==='Red Defender'){ scene.remove(players[i].mesh); scene.remove(players[i].mesh._blob); players.splice(i,1); } }
             for(const pk of pickups){ pk.taken=false; pk.grp.visible=true; }
             score.red=0; score.blue=0; returnHome(flags.red); returnHome(flags.blue);
@@ -679,8 +714,8 @@
         // ===================== MAIN LOOP =====================
         setupTeams();
         // player is solid; third-person view sits behind & slightly high, bullets follow the crosshair
-        window.FIA={ players, flags, score, bullets, rockets, pickups, planes, bombs, BASES, OBSTACLES, scene, camera, update, fireBullet, fireRocket, explodeRocket, hit, playerShoot, jump, callAirstrike, openInventory, closeInventory, threatLevel, manageDefenders, terrainH, pointInIsland, clampToIsland, ISLAND_POLY, isTouch,
-            get human(){return human;}, get running(){return running;}, set running(v){running=v;}, get viewMode(){return viewMode;}, get fpvBullet(){return fpvBullet;}, get touchMove(){return touchMove;}, get inventoryOpen(){return inventoryOpen;} };
+        window.FIA={ players, flags, score, bullets, rockets, pickups, planes, bombs, turrets, BASES, OBSTACLES, scene, camera, update, fireBullet, fireRocket, explodeRocket, hit, playerShoot, jump, callAirstrike, openInventory, closeInventory, startBuild, threatLevel, manageDefenders, terrainH, pointInIsland, clampToIsland, ISLAND_POLY, isTouch,
+            get human(){return human;}, get running(){return running;}, set running(v){running=v;}, get viewMode(){return viewMode;}, get fpvBullet(){return fpvBullet;}, get touchMove(){return touchMove;}, get inventoryOpen(){return inventoryOpen;}, get building(){return building;} };
         let last=0;
         function loop(t){ if(!last) last=t; let dt=(t-last)/1000; last=t; if(dt>0.05) dt=0.05; if(running&&!gameOver) update(inventoryOpen?dt*INV_TIMESCALE:dt);
             if(damageTimer>0){ damageTimer-=dt; if(damageTimer<=0) elDamage.classList.remove('on'); }
