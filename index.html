@@ -159,7 +159,7 @@
         const THREAT_RANGE = 1500, MAX_RED = 7;   // difficulty rises as you near the Red flag
         const MAX_HP = 100, BULLET_DMG = 34, ARMOUR_MAX = 100, INV_TIMESCALE = 0.25, AIRSTRIKES = 3, BOMB_BLAST = 120;
         const PICKUP_DIST = 18, BASE_R = 44, WIN_SCORE = 3, TAG_TIME = 1.0, FLAG_DROP_TIME = 5.0;
-        const CAM_DIST = 56, CAM_HEIGHT = 32, FPV_MAX = 5.0;
+        const CAM_DIST = 56, CAM_HEIGHT = 64, FPV_MAX = 5.0;
         const SENS_YAW = 0.0023, SENS_PITCH = 0.0021, PITCH_MIN = -0.95, PITCH_MAX = 0.95;
         const SEA_Y = -9;
 
@@ -596,7 +596,7 @@
         function updateCamera(){ if(!human) return; const f={x:Math.sin(human.yaw),z:Math.cos(human.yaw)},cr=human.crouch?CROUCH_DROP:0;
             if(viewMode==='fpv'&&fpvBullet&&bullets.indexOf(fpvBullet)!==-1){ const eye=human.y+EYE_Y-cr,d=aimDir(human); camera.position.set(human.x+f.x*1.5,eye+1.5,human.z+f.z*1.5); camera.lookAt(human.x+d.x*60,eye+1.5+d.y*60,human.z+d.z*60); return; }
             const camX=human.x-f.x*CAM_DIST,camZ=human.z-f.z*CAM_DIST; let camY=human.y+CAM_HEIGHT-cr-human.pitch*26; const gc=terrainH(camX,camZ)+7; if(camY<gc) camY=gc;
-            camera.position.set(camX,camY,camZ); const lookY=human.y+BODY_OFF+4-cr+human.pitch*70; camera.lookAt(human.x+f.x*26,lookY,human.z+f.z*26); }
+            camera.position.set(camX,camY,camZ); const lookY=human.y+BODY_OFF+4-cr+human.pitch*70; camera.lookAt(human.x+f.x*44,lookY,human.z+f.z*44); }
 
         // ===================== HUD =====================
         const elScoreR=document.getElementById('score-red'),elScoreB=document.getElementById('score-blue'),elCarry=document.getElementById('carry-status'),elHeading=document.getElementById('heading'),elAmmo=document.getElementById('ammo'),elWeapon=document.getElementById('weapon'),elAir=document.getElementById('air');
