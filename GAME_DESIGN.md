@@ -76,6 +76,18 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
   The engine **overheats after 20 s of driving** and needs **~18 s to cool** (engine cut
   while it cools). It **rides over the hills** and **launches into the air off steep crests**.
 
+## Graphics
+- **Real-time shadows** (PCFSoft) from a single sun whose shadow camera **follows the
+  player/car** in a tight ±640 box, so a 6000-unit map still gets crisp contact shadows.
+- **sRGB + ACES tone mapping**, rebalanced hemisphere/sun lighting + a warm fill.
+- **Procedural detail textures** (canvas-drawn, no asset files): sand grain, hut plaster,
+  thatch roofs, foliage, **camo** uniforms & car, rock striations (bump), brushed metal
+  (Phong specular) on guns/car. Each pattern averages near-white so it adds grain/relief
+  without re-tinting the hand-painted palette.
+- **3× geometry detail** (tripled segment counts across trunks, canopies, helmets, barrels,
+  rockets, wheels, etc.), a **gradient sky dome + sun disc**, a **Phong specular sea**, and
+  **soft radial contact-shadows** under each soldier. Rolling car wheels.
+
 ## Build increments
 - **Increment 1**: 2D top-down arena, movement, slow bullets, AI bots, tag/respawn.
 - **Increment 2**: true 3D (Three.js r128), third-person, Zanzibar island + 13 villages,

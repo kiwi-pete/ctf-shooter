@@ -208,7 +208,7 @@
 
         // ===================== SCENE =====================
         const SKY=0x8fc8ec;
-        const scene=new THREE.Scene(); scene.background=new THREE.Color(SKY); scene.fog=new THREE.Fog(SKY, ISLAND_LENGTH*0.18, ISLAND_LENGTH*0.95);
+        const scene=new THREE.Scene(); scene.background=new THREE.Color(SKY); scene.fog=new THREE.Fog(SKY, ISLAND_LENGTH*0.22, ISLAND_LENGTH*0.92);
         const camera=new THREE.PerspectiveCamera(62, innerWidth/innerHeight, 1, ISLAND_LENGTH*2.3); camera.position.set(0,120,0);
         const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight);
         renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
@@ -236,7 +236,7 @@
         for(let j=0;j<gnz;j++) for(let i=0;i<gnx;i++){ Hgrid[j*gnx+i]=computeHeight(gx0+i*gdx,gz0+j*gdz); }
         function terrainH(x,z){ const fx=(x-gx0)/gdx,fz=(z-gz0)/gdz; let i=Math.floor(fx),j=Math.floor(fz); if(i<0||j<0||i>=gnx-1||j>=gnz-1) return -30;
             const tx=fx-i,tz=fz-j,a=Hgrid[j*gnx+i],b=Hgrid[j*gnx+i+1],c=Hgrid[(j+1)*gnx+i],dd=Hgrid[(j+1)*gnx+i+1]; return (a*(1-tx)+b*tx)*(1-tz)+(c*(1-tx)+dd*tx)*tz; }
-        let terrainGeo=null, terrainDirty=false;
+        let terrainGeo=null, terrainDirty=false, terrainMat=null;
         (function buildTerrainMesh(){
             const verts=[],cols=[],idx=[];
             const cSand=[0.90,0.82,0.58],cFoam=[0.93,0.95,0.93],cGrass=[0.42,0.66,0.32],cGrassDk=[0.27,0.46,0.22],cRock=[0.55,0.50,0.42],cPeak=[0.74,0.72,0.66];
@@ -251,7 +251,7 @@
                 cols.push(c[0],c[1],c[2]); }
             for(let j=0;j<gnz-1;j++) for(let i=0;i<gnx-1;i++){ const a=j*gnx+i,b=a+1,c=a+gnx,d=c+1; idx.push(a,c,b,b,c,d); }
             const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3)); g.setIndex(idx); g.computeVertexNormals();
-            terrainGeo=g; const tmesh=new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true})); tmesh.receiveShadow=true; scene.add(tmesh);
+            terrainGeo=g; terrainMat=new THREE.MeshLambertMaterial({vertexColors:true}); const tmesh=new THREE.Mesh(g,terrainMat); tmesh.receiveShadow=true; scene.add(tmesh);
         })();
         // dig the heightfield (craters/holes) + churn the colour to bare earth
         function deformTerrain(cx,cz,radius,depth){ if(!terrainGeo) return; const pos=terrainGeo.attributes.position,col=terrainGeo.attributes.color;
@@ -277,7 +277,7 @@
         const SEA_SEG=48, SEA_SIZE=ISLAND_LENGTH*3.4;
         const seaGeo=new THREE.PlaneGeometry(SEA_SIZE,SEA_SIZE,SEA_SEG,SEA_SEG); seaGeo.rotateX(-Math.PI/2);
         const seaCol=new THREE.Float32BufferAttribute(new Float32Array(seaGeo.attributes.position.count*3),3); seaGeo.setAttribute('color',seaCol);
-        const sea=new THREE.Mesh(seaGeo,new THREE.MeshLambertMaterial({vertexColors:true,transparent:true,opacity:0.93})); sea.position.y=SEA_Y; scene.add(sea);
+        const sea=new THREE.Mesh(seaGeo,new THREE.MeshPhongMaterial({vertexColors:true,transparent:true,opacity:0.93,shininess:80,specular:0x335577})); sea.position.y=SEA_Y; scene.add(sea);
         const seaPos=seaGeo.attributes.position;
         function animateSea(t){ for(let k=0;k<seaPos.count;k++){ const x=seaPos.getX(k),z=seaPos.getZ(k);
             const h=Math.sin(x*0.012+t*1.1)*2.4+Math.sin(z*0.015+t*0.9)*2.0+Math.sin((x+z)*0.02+t*1.7)*1.1; seaPos.setY(k,h);
@@ -287,24 +287,24 @@
         function animateSurf(t){ for(const s of surf){ const k=((t*0.45+s.phase)%1),sc=0.35+k*1.4; s.mesh.scale.set(sc,sc,1); s.mesh.material.opacity=0.55*(1-k); } }
 
         // ===================== CACHES =====================
-        const G={ hutBody:new THREE.BoxGeometry(11,9,11), hutRoof:new THREE.ConeGeometry(8.6,7,4), rock:new THREE.DodecahedronGeometry(7),
-            trunk:new THREE.CylinderGeometry(1.6,2.4,16,6), canopy:new THREE.ConeGeometry(9,18,8), canopy2:new THREE.ConeGeometry(6.5,12,8), palmTop:new THREE.SphereGeometry(6,7,6),
-            baseDisc:new THREE.CylinderGeometry(BASE_R,BASE_R,1.4,36), baseRing:new THREE.TorusGeometry(BASE_R,2.4,8,40), pole:new THREE.CylinderGeometry(0.8,0.8,36,7), cloth:new THREE.BoxGeometry(16,11,0.7),
-            blob:new THREE.CircleGeometry(PLAYER_R+3.5,18), bullet:new THREE.ConeGeometry(1.9,9,6), rktBody:new THREE.CylinderGeometry(2.4,2.4,12,10), rktNose:new THREE.ConeGeometry(2.9,6,10),
+        const G={ hutBody:new THREE.BoxGeometry(11,9,11), hutRoof:new THREE.ConeGeometry(8.6,7,4), rock:new THREE.DodecahedronGeometry(7,1),
+            trunk:new THREE.CylinderGeometry(1.6,2.4,16,12), canopy:new THREE.ConeGeometry(9,18,16), canopy2:new THREE.ConeGeometry(6.5,12,16), palmTop:new THREE.SphereGeometry(6,16,12),
+            baseDisc:new THREE.CylinderGeometry(BASE_R,BASE_R,1.4,48), baseRing:new THREE.TorusGeometry(BASE_R,2.4,16,80), pole:new THREE.CylinderGeometry(0.8,0.8,36,12), cloth:new THREE.BoxGeometry(16,11,0.7),
+            blob:new THREE.CircleGeometry(PLAYER_R+3.5,24), bullet:new THREE.ConeGeometry(1.9,9,12), rktBody:new THREE.CylinderGeometry(2.4,2.4,12,16), rktNose:new THREE.ConeGeometry(2.9,6,16),
             boot:new THREE.BoxGeometry(4,3.5,5.5), leg:new THREE.BoxGeometry(3.8,9,4), hips:new THREE.BoxGeometry(11,4,7), torso:new THREE.BoxGeometry(12,11,7.5), vest:new THREE.BoxGeometry(12.8,9,8.4),
             patch:new THREE.BoxGeometry(4,4,0.6), pack:new THREE.BoxGeometry(8,9,4), arm:new THREE.BoxGeometry(3.2,10,3.2), neck:new THREE.BoxGeometry(3.5,2.5,3.5),
-            head:new THREE.BoxGeometry(6.4,6.6,6.2), face:new THREE.BoxGeometry(5,2.3,0.8), helmet:new THREE.SphereGeometry(4.3,12,9), hband:new THREE.TorusGeometry(4.0,0.7,7,18),
-            gunBody:new THREE.BoxGeometry(2.4,2.6,13), gunBarrel:new THREE.CylinderGeometry(0.6,0.6,9,7), gunMag:new THREE.BoxGeometry(1.8,4.5,2.2), gunStock:new THREE.BoxGeometry(2,3,4),
-            launchTube:new THREE.CylinderGeometry(3,3,24,12), launchWar:new THREE.ConeGeometry(3.3,7,12), launchGrip:new THREE.BoxGeometry(1.8,4,2.2), launchSight:new THREE.BoxGeometry(1.2,2.4,1.2),
-            mgBody:new THREE.BoxGeometry(3.6,3.6,17), mgBarrel:new THREE.CylinderGeometry(0.7,0.7,12,8), mgRecv:new THREE.BoxGeometry(3.2,4.2,6), mgAmmo:new THREE.BoxGeometry(5,5,6), mgBelt:new THREE.BoxGeometry(8,1.3,2.6),
+            head:new THREE.BoxGeometry(6.4,6.6,6.2), face:new THREE.BoxGeometry(5,2.3,0.8), helmet:new THREE.SphereGeometry(4.3,20,14), hband:new THREE.TorusGeometry(4.0,0.7,12,28),
+            gunBody:new THREE.BoxGeometry(2.4,2.6,13), gunBarrel:new THREE.CylinderGeometry(0.6,0.6,9,12), gunMag:new THREE.BoxGeometry(1.8,4.5,2.2), gunStock:new THREE.BoxGeometry(2,3,4),
+            launchTube:new THREE.CylinderGeometry(3,3,24,20), launchWar:new THREE.ConeGeometry(3.3,7,18), launchGrip:new THREE.BoxGeometry(1.8,4,2.2), launchSight:new THREE.BoxGeometry(1.2,2.4,1.2),
+            mgBody:new THREE.BoxGeometry(3.6,3.6,17), mgBarrel:new THREE.CylinderGeometry(0.7,0.7,12,14), mgRecv:new THREE.BoxGeometry(3.2,4.2,6), mgAmmo:new THREE.BoxGeometry(5,5,6), mgBelt:new THREE.BoxGeometry(8,1.3,2.6),
             bldgBig:new THREE.BoxGeometry(34,42,30), bldgSm:new THREE.BoxGeometry(24,30,24), roofFlat:new THREE.BoxGeometry(37,3,33), armourV:new THREE.BoxGeometry(11,12,5),
-            planeFus:new THREE.CylinderGeometry(3,3,30,8), planeWing:new THREE.BoxGeometry(46,1.6,8), planeTail:new THREE.BoxGeometry(14,1.2,5), planeFin:new THREE.BoxGeometry(1.4,7,5), bomb:new THREE.SphereGeometry(3,8,7),
+            planeFus:new THREE.CylinderGeometry(3,3,30,14), planeWing:new THREE.BoxGeometry(46,1.6,8), planeTail:new THREE.BoxGeometry(14,1.2,5), planeFin:new THREE.BoxGeometry(1.4,7,5), bomb:new THREE.SphereGeometry(3,16,12),
             wall:new THREE.BoxGeometry(34,26,7), pillBase:new THREE.BoxGeometry(24,30,24), pillRoof:new THREE.BoxGeometry(27,4,27), pillGun:new THREE.BoxGeometry(2.6,2.6,13) };
-        const M={ wall:new THREE.MeshLambertMaterial({color:0xefe2c0}), roof:new THREE.MeshLambertMaterial({color:0xb5552f}), rock:new THREE.MeshLambertMaterial({color:0x9aa3ab}),
+        const M={ wall:new THREE.MeshLambertMaterial({color:0xefe2c0}), roof:new THREE.MeshLambertMaterial({color:0xb5552f}), rock:new THREE.MeshPhongMaterial({color:0x9aa3ab,shininess:6,flatShading:true}),
             trunk:new THREE.MeshLambertMaterial({color:0x7a5230}), leaf:new THREE.MeshLambertMaterial({color:0x3f9d4f}), leafDk:new THREE.MeshLambertMaterial({color:0x2f7d3c}),
             blob:new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.22,depthWrite:false}), skin:new THREE.MeshLambertMaterial({color:0xe8b48c}), dark:new THREE.MeshLambertMaterial({color:0x23262e}),
             uniform:new THREE.MeshLambertMaterial({color:0x6b7344}), uniformDk:new THREE.MeshLambertMaterial({color:0x515a36}), vest:new THREE.MeshLambertMaterial({color:0x3b3f2e}), helmet:new THREE.MeshLambertMaterial({color:0x5c6138}),
-            gun:new THREE.MeshLambertMaterial({color:0x2e333b}), red:new THREE.MeshLambertMaterial({color:0xe23b3b}), blue:new THREE.MeshLambertMaterial({color:0x3b7de2}),
+            gun:new THREE.MeshPhongMaterial({color:0x2e333b,specular:0x555555,shininess:55}), red:new THREE.MeshLambertMaterial({color:0xe23b3b}), blue:new THREE.MeshLambertMaterial({color:0x3b7de2}),
             redClothA:new THREE.MeshLambertMaterial({color:0xef4444}), blueClothA:new THREE.MeshLambertMaterial({color:0x3b82f6}),
             redBase:new THREE.MeshBasicMaterial({color:0xef4444,transparent:true,opacity:0.30,depthWrite:false}), blueBase:new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:0.30,depthWrite:false}),
             redRing:new THREE.MeshBasicMaterial({color:0xf87171}), blueRing:new THREE.MeshBasicMaterial({color:0x60a5fa}),
@@ -315,6 +315,38 @@
         const GLOW_TEX=(function(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); const gr=g.createRadialGradient(32,32,0,32,32,32);
             gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.4,'rgba(255,255,255,0.6)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,64,64); const tx=new THREE.CanvasTexture(c); tx.encoding=THREE.sRGBEncoding; return tx; })();
         const WHITE_TEX=(function(){ const c=document.createElement('canvas'); c.width=c.height=2; const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,2,2); const tx=new THREE.CanvasTexture(c); tx.encoding=THREE.sRGBEncoding; return tx; })();
+        // ---- procedural detail textures (canvas-drawn, no asset files). Each pattern averages near WHITE so `map`
+        //      multiplies the material's tuned colour, adding grain/relief without re-tinting the palette. ----
+        const TEX=(function(){ const MAXA=renderer.capabilities.getMaxAnisotropy();
+            function tex(size,draw,linear){ const c=document.createElement('canvas'); c.width=c.height=size; const g=c.getContext('2d'); g.fillStyle='#fff'; g.fillRect(0,0,size,size); draw(g,size); const t=new THREE.CanvasTexture(c); t.wrapS=t.wrapT=THREE.RepeatWrapping; t.anisotropy=MAXA; t.encoding=linear?THREE.LinearEncoding:THREE.sRGBEncoding; return t; }
+            function speck(g,s,n,dark,light){ for(let i=0;i<n;i++){ const x=Math.random()*s,y=Math.random()*s; g.fillStyle=(Math.random()<0.5?dark:light); g.fillRect(x,y,1.5,1.5); } }
+            const T={};
+            T.ground =tex(256,(g,s)=>speck(g,s,11000,'rgba(120,100,70,0.12)','rgba(255,250,235,0.14)'));
+            T.plaster=tex(128,(g,s)=>{ speck(g,s,1600,'rgba(150,135,95,0.10)','rgba(255,255,250,0.10)'); for(let i=0;i<8;i++){ g.strokeStyle='rgba(140,120,85,0.10)'; g.beginPath(); const y=Math.random()*s; g.moveTo(0,y); g.lineTo(s,y+(Math.random()-0.5)*8); g.stroke(); } });
+            T.thatch =tex(64,(g,s)=>{ for(let i=0;i<80;i++){ g.strokeStyle='rgba('+(70+Math.random()*60|0)+','+(45+Math.random()*30|0)+',25,0.28)'; g.lineWidth=0.6+Math.random(); const y=Math.random()*s; g.beginPath(); g.moveTo(0,y); g.lineTo(s,y); g.stroke(); } });
+            T.foliage=tex(64,(g,s)=>speck(g,s,1400,'rgba(30,80,35,0.22)','rgba(160,210,120,0.18)'));
+            T.camo   =tex(128,(g,s)=>{ const cols=['rgba(70,75,45,0.5)','rgba(55,60,38,0.5)','rgba(95,100,62,0.45)']; for(let i=0;i<24;i++){ g.fillStyle=cols[i%3]; g.beginPath(); g.ellipse(Math.random()*s,Math.random()*s,7+Math.random()*15,(7+Math.random()*15)*0.7,Math.random()*3,0,7); g.fill(); } });
+            T.rock   =tex(128,(g,s)=>{ speck(g,s,1500,'rgba(60,62,66,0.18)','rgba(235,238,242,0.16)'); for(let i=0;i<26;i++){ g.strokeStyle='rgba(55,58,62,0.22)'; g.lineWidth=0.5+Math.random()*1.4; const y=Math.random()*s; g.beginPath(); g.moveTo(0,y); g.lineTo(s,y+(Math.random()-0.5)*22); g.stroke(); } });
+            T.metal  =tex(64,(g,s)=>{ for(let i=0;i<s;i+=1){ g.strokeStyle='rgba(0,0,0,'+(Math.random()*0.06)+')'; g.beginPath(); g.moveTo(0,i); g.lineTo(s,i); g.stroke(); } speck(g,s,300,'rgba(20,20,24,0.10)','rgba(255,255,255,0.10)'); });
+            return T; })();
+        // assign maps to the shared material cache (refs survive .clone(), so each texture uploads once)
+        if(terrainMat){ terrainMat.map=TEX.ground; TEX.ground.repeat.set(BBOX_W/220,ISLAND_LENGTH/220); terrainMat.needsUpdate=true; }
+        M.wall.map=TEX.plaster; M.roof.map=TEX.thatch; M.leaf.map=TEX.foliage; M.leafDk.map=TEX.foliage;
+        M.uniform.map=TEX.camo; M.uniformDk.map=TEX.camo; M.vest.map=TEX.camo; M.helmet.map=TEX.camo;
+        M.rock.map=TEX.rock; M.rock.bumpMap=TEX.rock; M.rock.bumpScale=0.5;
+        M.gun.map=TEX.metal; M.rktBody.map=TEX.metal;
+        TEX.thatch.repeat.set(2,2);
+        // soft radial contact-shadow under each soldier (replaces the hard flat disc)
+        const SHADOW_TEX=(function(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); const gr=g.createRadialGradient(32,32,0,32,32,32); gr.addColorStop(0,'rgba(0,0,0,0.55)'); gr.addColorStop(0.6,'rgba(0,0,0,0.26)'); gr.addColorStop(1,'rgba(0,0,0,0)'); g.fillStyle=gr; g.fillRect(0,0,64,64); return new THREE.CanvasTexture(c); })();
+        M.blob.map=SHADOW_TEX; M.blob.color.setHex(0xffffff); M.blob.opacity=0.9;
+        // ---- gradient sky dome + sun disc (procedural, fog-exempt so they read as the far sky) ----
+        (function(){ const c=document.createElement('canvas'); c.width=16; c.height=256; const g=c.getContext('2d'); const gr=g.createLinearGradient(0,0,0,256);
+            gr.addColorStop(0,'#356bb0'); gr.addColorStop(0.45,'#7fc0e8'); gr.addColorStop(0.78,'#bfe2f2'); gr.addColorStop(1,'#e8f4fb'); g.fillStyle=gr; g.fillRect(0,0,16,256);
+            const tx=new THREE.CanvasTexture(c); tx.encoding=THREE.sRGBEncoding;
+            const dome=new THREE.Mesh(new THREE.SphereGeometry(ISLAND_LENGTH*1.6,24,16), new THREE.MeshBasicMaterial({map:tx,side:THREE.BackSide,depthWrite:false,fog:false})); scene.add(dome);
+            const sd=new THREE.Vector3(800,1500,500).normalize().multiplyScalar(ISLAND_LENGTH*1.5);
+            const disc=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xfff2c8,transparent:true,depthWrite:false,depthTest:false,fog:false,blending:THREE.AdditiveBlending})); disc.scale.set(820,820,1); disc.position.copy(sd); scene.add(disc);
+        })();
 
         // ---- procedural sound (Web Audio, synthesized — no audio files) ----
         let AC=null, masterGain=null, NOISE=null;
@@ -462,21 +494,21 @@
 
         // ===================== ARMY CAR (drivable, mounted gun) =====================
         function buildCar(){ const grp=new THREE.Group();
-            const green=new THREE.MeshLambertMaterial({color:0x4d5938}), dark=new THREE.MeshLambertMaterial({color:0x2b3120}), tyre=new THREE.MeshLambertMaterial({color:0x191a1c}), metal=new THREE.MeshLambertMaterial({color:0x747b5d});
+            const green=new THREE.MeshLambertMaterial({color:0x4d5938,map:TEX.camo}), dark=new THREE.MeshLambertMaterial({color:0x2b3120}), tyre=new THREE.MeshLambertMaterial({color:0x191a1c}), metal=new THREE.MeshPhongMaterial({color:0x747b5d,map:TEX.metal,specular:0x555555,shininess:50});
             const body=new THREE.Mesh(new THREE.BoxGeometry(26,9,42),green); body.position.y=12; grp.add(body);
             const hood=new THREE.Mesh(new THREE.BoxGeometry(23,5,13),green); hood.position.set(0,9,15); grp.add(hood);
             const grille=new THREE.Mesh(new THREE.BoxGeometry(22,5,1.5),dark); grille.position.set(0,9,22); grp.add(grille);
             const cab=new THREE.Mesh(new THREE.BoxGeometry(22,8,15),dark); cab.position.set(0,19,-3); grp.add(cab);
             const bar1=new THREE.Mesh(new THREE.CylinderGeometry(0.8,0.8,9,6),metal); bar1.position.set(-10,21,4); grp.add(bar1);
             const bar2=bar1.clone(); bar2.position.x=10; grp.add(bar2);
-            const wheelG=new THREE.CylinderGeometry(6,6,5,14); const wpos=[[-13.5,6,13],[13.5,6,13],[-13.5,6,-13],[13.5,6,-13]]; const wheels=[];
+            const wheelG=new THREE.CylinderGeometry(6,6,5,22); const wpos=[[-13.5,6,13],[13.5,6,13],[-13.5,6,-13],[13.5,6,-13]]; const wheels=[];
             wpos.forEach(p=>{ const w=new THREE.Mesh(wheelG,tyre); w.rotation.z=Math.PI/2; w.position.set(p[0],p[1],p[2]); grp.add(w); wheels.push(w); });
             const turret=new THREE.Group(); turret.position.set(0,25,-3); grp.add(turret);
-            const ring=new THREE.Mesh(new THREE.CylinderGeometry(5,5.6,3,14),metal); turret.add(ring);
+            const ring=new THREE.Mesh(new THREE.CylinderGeometry(5,5.6,3,22),metal); turret.add(ring);
             const shield=new THREE.Mesh(new THREE.BoxGeometry(11,7,1.6),metal); shield.position.set(0,3,4); turret.add(shield);
             const gun=new THREE.Group(); gun.position.set(0,3,3); turret.add(gun);
             const recv=new THREE.Mesh(new THREE.BoxGeometry(4,4,8),dark); gun.add(recv);
-            const barrel=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,20,10),dark); barrel.rotation.x=Math.PI/2; barrel.position.z=11; gun.add(barrel);
+            const barrel=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,20,16),dark); barrel.rotation.x=Math.PI/2; barrel.position.z=11; gun.add(barrel);
             grp._wheels=wheels; grp._turret=turret; grp._gun=gun; castAll(grp,true); scene.add(grp); return grp; }
         const car={ x:0,z:0,y:0,vx:0,vz:0,vy:0,yaw:0,heat:0,overheated:false,ammo:CAR_AMMO_MAX,fireT:0,airborne:false,mesh:buildCar() };
         function placeCar(){ const sp=clampToIsland({x:BASES.blue.x+74,z:BASES.blue.z-46},PLAYER_R+6); car.x=sp.x; car.z=sp.z; car.y=terrainH(sp.x,sp.z); car.yaw=0; car.vx=car.vz=car.vy=0; car.heat=0; car.overheated=false; car.airborne=false; car.ammo=CAR_AMMO_MAX; }
@@ -539,7 +571,8 @@
             for(const p of players){ if(p.team===team||p.tag>0) continue; if((p.x-x)**2+(p.z-z)**2<ROCKET_BLAST**2) p.doTag(); }
             for(const o of OBSTACLES){ const dd=Math.hypot(o.x-x,o.z-z); if(dd<ROCKET_BLAST+o.r) damageObstacle(o, o.built?33:42*Math.max(0.3,1-dd/(ROCKET_BLAST+o.r))); } }   // built defenses: ~4 rockets to destroy
         const effects=[];
-        function spawnEffect(x,y,z,color,from,to,life){ const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:color,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); spr.scale.set(from,from,1); spr.position.set(x,y,z); scene.add(spr); effects.push({spr:spr,t:0,life:life,from:from,to:to}); }
+        function spawnEffect(x,y,z,color,from,to,life){ if(effects.length>240) return;   // safety cap so dense explosions can't pile up draw calls
+            const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:color,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); spr.scale.set(from,from,1); spr.position.set(x,y,z); scene.add(spr); effects.push({spr:spr,t:0,life:life,from:from,to:to}); }
         function updateEffects(dt){ for(let i=effects.length-1;i>=0;i--){ const e=effects[i]; e.t+=dt; const k=Math.min(1,e.t/e.life),s=e.from+(e.to-e.from)*k; e.spr.scale.set(s,s,1); e.spr.material.opacity=1-k; if(e.t>=e.life){ scene.remove(e.spr); e.spr.material.dispose(); effects.splice(i,1); } } }
         function hit(e,dmg){ if(e.tag>0) return; let d=dmg; if(e.armour>0){ const ab=Math.min(e.armour,dmg*0.5); d-=ab; e.armour-=ab; }   // armour absorbs half
             e.hp-=d; spawnEffect(e.x,e.y+BODY_OFF,e.z,e.team==='red'?0xff9a9a:0x9ac8ff,4,16,0.2); if(e===human) flashDamage(); if(e.hp<=0){ e.hp=0; e.doTag(); } }
@@ -790,10 +823,11 @@
                 const aw=23*Math.max(0,e.armour)/ARMOUR_MAX; g._arFill.scale.x=Math.max(0.001,aw); g._arFill.position.x=-(23-aw)/2;
                 g._hpBg.visible=true; g._hpFill.visible=true; g._arFill.visible=true;
             } else { g._hpBg.visible=false; g._hpFill.visible=false; g._arFill.visible=false; }
-            g._blob.position.set(e.x,e.y+0.4,e.z); g._blob.visible=vis&&!(e===human&&viewMode==='fpv'); }
+            g._blob.position.set(e.x,terrainH(e.x,e.z)+0.4,e.z); g._blob.visible=vis&&!(e===human&&viewMode==='fpv'); }
             // army car: place, steer, aim the turret at the driver's look
             const cg=car.mesh; cg.position.set(car.x,car.y,car.z); cg.rotation.y=car.yaw;
-            cg._turret.rotation.y=(human?human.yaw:0)-car.yaw; cg._gun.rotation.x=human?Math.max(-0.5,Math.min(0.5,human.pitch*0.7)):0; }
+            cg._turret.rotation.y=(human?human.yaw:0)-car.yaw; cg._gun.rotation.x=human?Math.max(-0.5,Math.min(0.5,human.pitch*0.7)):0;
+            const wd=Math.hypot(car.vx,car.vz)*dtNow*0.16; if(wd>0.0001) for(const w of cg._wheels) w.rotateY(wd); }
         function updateCamera(){ if(!human) return;
             if(camRocket){ if(rockets.indexOf(camRocket)===-1){ camRocket=null; } else { const v=camRocket,hv=Math.hypot(v.vx,v.vz)||1,fx=v.vx/hv,fz=v.vz/hv, td=Math.max(140,Math.min(650,90+v.dist*0.6));   // pull back more the further it flies
                 const cx=v.x-fx*td,cz=v.z-fz*td; let cy=Math.max(v.y,terrainH(cx,cz))+70+Math.min(120,v.dist*0.08); camera.position.set(cx,cy,cz); camera.lookAt(v.x,v.y,v.z); return; } }
