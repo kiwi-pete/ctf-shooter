@@ -36,6 +36,7 @@
         #compass { position:absolute; top:14px; left:14px; padding:6px 12px; border-radius:10px; font-size:12px; font-weight:600; color:#cbd5e1;
             background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.07); }
         #compass b { color:#fbbf24; }
+        #minimap { position:absolute; top:50px; left:14px; width:120px; height:216px; background:rgba(8,14,28,0.45); border:1px solid rgba(255,255,255,0.18); border-radius:10px; }
         #hint { position:absolute; bottom:14px; left:50%; transform:translateX(-50%); padding:7px 16px; border-radius:10px; font-size:12.5px; color:#cbd5e1;
             background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.07); }
         #hint span { background:#334155; color:#f1f5f9; padding:1px 6px; border-radius:4px; font-weight:700; }
@@ -89,6 +90,7 @@
         <div id="weapon"></div>
         <div id="ammo">🚀 Rocket ready <span class="g">(G)</span></div>
         <div id="compass">Heading: <b id="heading">S</b></div>
+        <canvas id="minimap" width="120" height="216"></canvas>
         <div id="crosshair"></div>
         <div id="damage"></div>
         <div id="hint"><span>WASD</span> move · <span>Mouse</span> look · <span>Space/Click</span> shoot · <span>G</span> rocket · <span>Shift</span> jump · <span>C</span> crouch · <span>Esc</span> release</div>
@@ -137,7 +139,7 @@
         const THREAT_RANGE = 1500, MAX_RED = 7;   // difficulty rises as you near the Red flag
         const PICKUP_DIST = 18, BASE_R = 44, WIN_SCORE = 3, TAG_TIME = 1.0, FLAG_DROP_TIME = 5.0;
         const CAM_DIST = 66, CAM_HEIGHT = 31, FPV_MAX = 5.0;
-        const SENS_YAW = 0.0023, SENS_PITCH = 0.0021, PITCH_MIN = -0.42, PITCH_MAX = 0.52;
+        const SENS_YAW = 0.0023, SENS_PITCH = 0.0021, PITCH_MIN = -0.95, PITCH_MAX = 0.95;
         const SEA_Y = -9;
 
         const ISLAND_NORM = [
@@ -198,11 +200,19 @@
                 const slope=Math.hypot((hr-hl)/(2*gdx),(hu-hd)/(2*gdz)); let c;
                 if(h<0.9)c=cSand; else if(h<2.2)c=mix(cFoam,cSand,(h-0.9)/1.3); else if(h<6)c=mix(cSand,cGrass,(h-2.2)/3.8);
                 else if(h<48)c=mix(cGrass,cGrassDk,(h-6)/42); else if(h<78)c=mix(cGrassDk,cRock,(h-48)/30); else c=mix(cRock,cPeak,Math.min(1,(h-78)/40));
-                if(slope>0.55&&h>2.2)c=mix(c,cRock,Math.min(0.85,(slope-0.55)*1.4)); cols.push(c[0],c[1],c[2]); }
+                if(slope>0.55&&h>2.2)c=mix(c,cRock,Math.min(0.85,(slope-0.55)*1.4));
+                if(h>5){ const tt=(h/14)%1; if(tt<0.07||tt>0.93) c=[c[0]*0.84,c[1]*0.84,c[2]*0.84]; }   // subtle contour lines on hills
+                cols.push(c[0],c[1],c[2]); }
             for(let j=0;j<gnz-1;j++) for(let i=0;i<gnx-1;i++){ const a=j*gnx+i,b=a+1,c=a+gnx,d=c+1; idx.push(a,c,b,b,c,d); }
             const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(verts,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(cols,3)); g.setIndex(idx); g.computeVertexNormals();
             scene.add(new THREE.Mesh(g,new THREE.MeshLambertMaterial({vertexColors:true})));
         })();
+        // sparse grass specks scattered on the grass — gives a sense of motion as you move
+        (function grassDetail(){ const pos=[],col=[]; let n=0,guard=0;
+            while(n<4200 && guard<22000){ guard++; const x=gx0+Math.random()*BBOX_W, z=gz0+Math.random()*ISLAND_LENGTH; if(!pointInIsland(x,z)) continue; const h=terrainH(x,z); if(h<1.6||h>72) continue;
+                pos.push(x,h+1.2,z); const v=0.45+Math.random()*0.32; col.push(0.22*v+0.05,0.5*v+0.12,0.2*v); n++; }
+            const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
+            scene.add(new THREE.Points(g,new THREE.PointsMaterial({size:3.4,vertexColors:true,sizeAttenuation:true}))); })();
 
         // ===================== SEA =====================
         const SEA_SEG=48, SEA_SIZE=ISLAND_LENGTH*3.4;
@@ -339,18 +349,19 @@
 
         // ===================== BULLETS / ROCKETS / EFFECTS =====================
         const bullets=[];
-        function fireBullet(shooter){ const dir={x:Math.sin(shooter.yaw),z:Math.cos(shooter.yaw)}; const ox=shooter.x+dir.x*(PLAYER_R+5),oz=shooter.z+dir.z*(PLAYER_R+5),oy=shooter.y+GUN_Y-(shooter.crouch?CROUCH_DROP:0);
+        function aimDir(e){ const cp=Math.cos(e.pitch),sp=Math.sin(e.pitch); return {x:Math.sin(e.yaw)*cp,y:sp,z:Math.cos(e.yaw)*cp}; }   // 3D aim incl. up/down pitch
+        function fireBullet(shooter){ const d=aimDir(shooter); const ox=shooter.x+d.x*(PLAYER_R+5),oz=shooter.z+d.z*(PLAYER_R+5),oy=shooter.y+GUN_Y-(shooter.crouch?CROUCH_DROP:0)+d.y*(PLAYER_R+5);
             const grp=new THREE.Group(); grp.add(new THREE.Mesh(G.bullet,shooter.team==='red'?M.bulletRed:M.bulletBlue));
             const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:shooter.team==='red'?0xff5a45:0x55a8ff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); halo.scale.set(15,15,1); grp.add(halo); grp.position.set(ox,oy,oz); scene.add(grp);
-            const b={x:ox,z:oz,y:oy,vx:dir.x*BULLET_SPEED,vz:dir.z*BULLET_SPEED,team:shooter.team,dist:0,mesh:grp}; bullets.push(b); spawnEffect(ox,oy,oz,shooter.team==='red'?0xff7b6b:0x7cc0ff,8,3,0.12); return b; }
+            const b={x:ox,z:oz,y:oy,vx:d.x*BULLET_SPEED,vy:d.y*BULLET_SPEED,vz:d.z*BULLET_SPEED,team:shooter.team,dist:0,mesh:grp}; bullets.push(b); spawnEffect(ox,oy,oz,shooter.team==='red'?0xff7b6b:0x7cc0ff,8,3,0.12); return b; }
         function removeBullet(i){ scene.remove(bullets[i].mesh); bullets[i].mesh.children[1].material.dispose(); bullets.splice(i,1); }
         const rockets=[];
         function buildRocketMesh(){ const g=new THREE.Group(); g.rotation.order='YXZ'; const body=new THREE.Mesh(G.rktBody,M.rktBody); body.rotation.x=Math.PI/2; g.add(body);
             const nose=new THREE.Mesh(G.rktNose,M.rktHead); nose.rotation.x=Math.PI/2; nose.position.z=9; g.add(nose);
             const tail=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xffc14d,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); tail.scale.set(24,24,1); tail.position.z=-9; g.add(tail); scene.add(g); return g; }
         function fireRocket(shooter){ if(shooter.rocketCD>0) return false; shooter.rocketCD=ROCKET_CD;   // unlimited ammo, 10s cooldown
-            const dir={x:Math.sin(shooter.yaw),z:Math.cos(shooter.yaw)}; const ox=shooter.x+dir.x*(PLAYER_R+10),oz=shooter.z+dir.z*(PLAYER_R+10),oy=shooter.y+GUN_Y+8-(shooter.crouch?CROUCH_DROP:0); // from the shoulder
-            const mesh=buildRocketMesh(); mesh.position.set(ox,oy,oz); rockets.push({x:ox,z:oz,y:oy,vx:dir.x*ROCKET_SPEED,vz:dir.z*ROCKET_SPEED,vy:ROCKET_VY0,team:shooter.team,dist:0,mesh:mesh}); spawnEffect(ox,oy,oz,0xffd27a,12,30,0.18); return true; }
+            const d=aimDir(shooter); const ox=shooter.x+d.x*(PLAYER_R+10),oz=shooter.z+d.z*(PLAYER_R+10),oy=shooter.y+GUN_Y+8-(shooter.crouch?CROUCH_DROP:0); // from the shoulder
+            const mesh=buildRocketMesh(); mesh.position.set(ox,oy,oz); rockets.push({x:ox,z:oz,y:oy,vx:d.x*ROCKET_SPEED,vz:d.z*ROCKET_SPEED,vy:d.y*ROCKET_SPEED+ROCKET_VY0,team:shooter.team,dist:0,mesh:mesh}); spawnEffect(ox,oy,oz,0xffd27a,12,30,0.18); return true; }
         function removeRocket(i){ scene.remove(rockets[i].mesh); rockets[i].mesh.children[2].material.dispose(); rockets.splice(i,1); }
         function explodeRocket(x,y,z,team){ spawnEffect(x,y,z,0xffb43c,16,ROCKET_BLAST*2.4,0.5); spawnEffect(x,y,z,0xffe7ad,8,ROCKET_BLAST*1.4,0.32);
             for(const p of players){ if(p.team===team||p.tag>0) continue; if((p.x-x)**2+(p.z-z)**2<ROCKET_BLAST**2) p.doTag(); } }
@@ -478,7 +489,7 @@
             for(const e of players){ if(e.tag>0) continue; e.x+=e.vx*dt; e.z+=e.vz*dt; clampToIsland(e,PLAYER_R+1); collideObstacles(e); clampToIsland(e,PLAYER_R+1); if(!(e===human&&human.airborne)) e.y=terrainH(e.x,e.z); }
             if(human&&human.tag<=0&&human.airborne){ human.vy-=GRAVITY*dt; human.y+=human.vy*dt; const gy=terrainH(human.x,human.z); if(human.y<=gy){ human.y=gy; human.vy=0; human.airborne=false; } }
             for(let i=0;i<players.length;i++){ const a=players[i]; if(a.tag>0) continue; for(let j=i+1;j<players.length;j++){ const b=players[j]; if(b.tag>0) continue; const dx=a.x-b.x,dz=a.z-b.z,d=Math.hypot(dx,dz),min=PLAYER_R*2; if(d<min&&d>0.0001){ const p=(min-d)*0.5; a.x+=(dx/d)*p; a.z+=(dz/d)*p; b.x-=(dx/d)*p; b.z-=(dz/d)*p; } } }
-            for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i],step=Math.hypot(b.vx,b.vz)*dt; b.x+=b.vx*dt; b.z+=b.vz*dt; b.dist+=step; b.mesh.position.set(b.x,b.y,b.z);
+            for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i],step=Math.hypot(b.vx,b.vz)*dt; b.x+=b.vx*dt; b.z+=b.vz*dt; b.y+=(b.vy||0)*dt; b.dist+=step; b.mesh.position.set(b.x,b.y,b.z);
                 let dead=b.dist>BULLET_RANGE||b.y<terrainH(b.x,b.z);
                 if(!dead) for(const o of OBSTACLES){ if((b.x-o.x)**2+(b.z-o.z)**2<(o.r+BULLET_R)**2){ dead=true; spawnEffect(b.x,b.y,b.z,0xdddddd,5,12,0.18); break; } }
                 if(!dead) for(const p of players){ if(p.team===b.team||p.tag>0) continue; if((b.x-p.x)**2+(b.z-p.z)**2<(PLAYER_R+BULLET_R)**2){ p.doTag(); dead=true; break; } }
@@ -505,7 +516,7 @@
             g._gun.visible=(e.weapon!=='mg'); g._mg.visible=(e.weapon==='mg');
             g._blob.position.set(e.x,e.y+0.4,e.z); g._blob.visible=vis&&!(e===human&&viewMode==='fpv'); } }
         function updateCamera(){ if(!human) return; const f={x:Math.sin(human.yaw),z:Math.cos(human.yaw)},cr=human.crouch?CROUCH_DROP:0;
-            if(viewMode==='fpv'&&fpvBullet&&bullets.indexOf(fpvBullet)!==-1){ const eye=human.y+EYE_Y-cr; camera.position.set(human.x+f.x*1.5,eye+1.5,human.z+f.z*1.5); camera.lookAt(human.x+f.x*60,eye-3.5,human.z+f.z*60); return; }
+            if(viewMode==='fpv'&&fpvBullet&&bullets.indexOf(fpvBullet)!==-1){ const eye=human.y+EYE_Y-cr,d=aimDir(human); camera.position.set(human.x+f.x*1.5,eye+1.5,human.z+f.z*1.5); camera.lookAt(human.x+d.x*60,eye+1.5+d.y*60,human.z+d.z*60); return; }
             const camX=human.x-f.x*CAM_DIST,camZ=human.z-f.z*CAM_DIST; let camY=human.y+CAM_HEIGHT-cr-human.pitch*26; const gc=terrainH(camX,camZ)+7; if(camY<gc) camY=gc;
             camera.position.set(camX,camY,camZ); const lookY=human.y+BODY_OFF+4-cr+human.pitch*70; camera.lookAt(human.x+f.x*26,lookY,human.z+f.z*26); }
 
@@ -516,6 +527,19 @@
             if(human){ elHeading.textContent=compass(human.yaw); const cd=human.rocketCD; if(cd>0.05){ elAmmo.classList.add('empty'); elAmmo.innerHTML='🚀 Reloading '+Math.ceil(cd)+'s'; } else { elAmmo.classList.remove('empty'); elAmmo.innerHTML='🚀 Rocket ready <span class="g">(G)</span>'; }
                 if(human.weapon==='mg'){ elWeapon.style.display='block'; elWeapon.textContent='🔫 MG  '+Math.floor(human.mgAmmo)+'/'+MG_MAX; } else if(human.hasMG){ elWeapon.style.display='block'; elWeapon.textContent='🔫 Pistol — M/WPN to switch'; } else elWeapon.style.display='none'; }
             if(human&&human.carrying){ elCarry.style.display='block'; elCarry.style.color='#fca5a5'; elCarry.textContent='🚩 You have the RED flag — run it home to the north!'; } else elCarry.style.display='none'; }
+        // ---- minimap (Zanzibar shape, north up): island, hills, bases, flags, you ----
+        const mm=document.getElementById('minimap'), mmx=mm.getContext('2d'); const MMW=120,MMH=216,MMP=7;
+        function mmPt(xn,zn){ return [MMP+xn*(MMW-2*MMP), MMP+(1-zn)*(MMH-2*MMP)]; }
+        function w2n(x,z){ return [x/BBOX_W+0.5, 0.5-z/ISLAND_LENGTH]; }
+        const MM_HILLS=[[120,-320],[-250,900],[380,-1250],[-120,2000]].map(c=>w2n(c[0],c[1]));
+        function mmDot(nx,nz,col,r){ const c=mmPt(nx,nz); mmx.fillStyle=col; mmx.beginPath(); mmx.arc(c[0],c[1],r,0,7); mmx.fill(); }
+        function drawMinimap(){ mmx.clearRect(0,0,MMW,MMH);
+            mmx.beginPath(); ISLAND_NORM.forEach((p,i)=>{ const c=mmPt(p[0],p[1]); i?mmx.lineTo(c[0],c[1]):mmx.moveTo(c[0],c[1]); }); mmx.closePath();
+            mmx.fillStyle='rgba(120,182,108,0.55)'; mmx.fill(); mmx.strokeStyle='rgba(255,255,255,0.5)'; mmx.lineWidth=1.4; mmx.stroke();
+            mmx.strokeStyle='rgba(80,104,64,0.75)'; mmx.lineWidth=1; MM_HILLS.forEach(h=>{ const c=mmPt(h[0],h[1]); for(let r=2.5;r<=8;r+=2.7){ mmx.beginPath(); mmx.arc(c[0],c[1],r,0,7); mmx.stroke(); } });
+            const bn=w2n(BASES.blue.x,BASES.blue.z), rn=w2n(BASES.red.x,BASES.red.z); mmDot(bn[0],bn[1],'rgba(96,165,250,0.5)',7); mmDot(rn[0],rn[1],'rgba(248,113,113,0.5)',7);
+            const bf=w2n(flags.blue.x,flags.blue.z), rf=w2n(flags.red.x,flags.red.z); mmDot(bf[0],bf[1],'#3b82f6',3.2); mmDot(rf[0],rf[1],'#ef4444',3.2);
+            if(human){ const pn=w2n(human.x,human.z),c=mmPt(pn[0],pn[1]); mmx.save(); mmx.translate(c[0],c[1]); mmx.rotate(Math.atan2(Math.cos(human.yaw),Math.sin(human.yaw))); mmx.fillStyle='#fde047'; mmx.beginPath(); mmx.moveTo(6,0); mmx.lineTo(-4,-3.6); mmx.lineTo(-4,3.6); mmx.closePath(); mmx.fill(); mmx.restore(); } }
 
         // ===================== MATCH FLOW =====================
         function endMatch(team){ gameOver=true; running=false; if(document.pointerLockElement) document.exitPointerLock();
@@ -530,13 +554,14 @@
 
         // ===================== MAIN LOOP =====================
         setupTeams();
+        (function ghostHuman(){ if(!human) return; human.mesh._body.forEach(o=>o.traverse(n=>{ if(n.material){ n.material=n.material.clone(); n.material.transparent=true; n.material.opacity=0.5; } })); })();  // 50% see-through so you can see ahead
         window.FIA={ players, flags, score, bullets, rockets, pickups, BASES, OBSTACLES, scene, camera, update, fireBullet, fireRocket, explodeRocket, playerShoot, jump, threatLevel, manageDefenders, terrainH, pointInIsland, clampToIsland, ISLAND_POLY, isTouch,
             get human(){return human;}, get running(){return running;}, set running(v){running=v;}, get viewMode(){return viewMode;}, get fpvBullet(){return fpvBullet;}, get touchMove(){return touchMove;} };
         let last=0;
         function loop(t){ if(!last) last=t; let dt=(t-last)/1000; last=t; if(dt>0.05) dt=0.05; if(running&&!gameOver) update(dt);
             if(damageTimer>0){ damageTimer-=dt; if(damageTimer<=0) elDamage.classList.remove('on'); }
             if(toastTimer>0){ toastTimer-=dt; if(toastTimer<=0) elToast.classList.remove('on'); }
-            animateSea(t/1000); animateSurf(t/1000); syncMeshes(); updateCamera(); updateHUD(); renderer.render(scene,camera); requestAnimationFrame(loop); }
+            animateSea(t/1000); animateSurf(t/1000); syncMeshes(); updateCamera(); updateHUD(); drawMinimap(); renderer.render(scene,camera); requestAnimationFrame(loop); }
         requestAnimationFrame(loop);
     })();
     </script>

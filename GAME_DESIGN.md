@@ -75,6 +75,10 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
 - **Increment 2.1**: island ×3, faster movement, ×2 bullets, rocket launcher (G).
 - **Increment 2.2**: procedural heightfield (hills, beaches, animated sea, Jozani forest),
   ×2 walk speed, first-person bullet-cam on shoot, detailed soldier.
+- **Increment 2.4**: vertical aim (look + shoot up/down in first-person), **50%
+  see-through player** so you can see ahead, a north-up **Zanzibar minimap** (you,
+  bases, flags, hill rings), and subtle ground detail (**contour lines on hills +
+  scattered grass specks**) for a sense of motion.
 - **Increment 2.3**: ×3 bullets; **shoulder rocket launcher that arcs**, now **unlimited
   with a 10 s cooldown**; **proximity-scaled enemy difficulty + reinforcements** near the
   Red flag; **telegraphed, arcing, area-effect enemy rockets**; a pickup-able **belt-fed
