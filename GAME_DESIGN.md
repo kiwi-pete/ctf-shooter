@@ -1,93 +1,82 @@
 # Fighting Island Arena — Design Log
 
 A cartoonish, kid-friendly **capture-the-flag** shooter set on the island of Unguja
-(Zanzibar). Two teams (Red vs Blue), slow dodgeable bullets, and "tags" instead of
-kills (no blood/gore — a hit is a tag, not a death). The whole game is a single
-`index.html` plus one vendored library. It auto-deploys to **Vercel** on every push
-to GitHub `kiwi-pete/ctf-shooter`.
+(Zanzibar). Two teams (Red vs Blue), dodgeable bullets, and "tags" instead of kills
+(no blood/gore — a hit is a tag, not a death). The whole game is a single
+`index.html` plus one vendored library. Plays on **desktop (mouse/keyboard)** and
+**iPad / touch** (on-screen controls). Auto-deploys to **Vercel** on every push to
+GitHub `kiwi-pete/ctf-shooter`.
 
 ## Engine
-- **Three.js r128**, the classic global-script (**UMD**) build, vendored at
-  `vendor/three.min.js` and loaded with a plain `<script>` tag (`window.THREE`).
+- **Three.js r128**, classic global-script (**UMD**) build, vendored at
+  `vendor/three.min.js` (plain `<script>`, `window.THREE`).
 - **True 3D, third-person** follow camera, with a **first-person bullet-cam** when
-  you shoot (see Controls).
-- Everything in the world — terrain, water, soldiers, trees — is built **procedurally
-  from core `THREE` primitives** (no external textures or models). The map is a
-  **procedural heightfield**, not a flat plane.
+  you shoot the pistol.
+- Terrain, water, soldiers, weapons and trees are all **procedural** (no external
+  textures/models). The map is a **procedural heightfield**. Still runs offline by
+  double-clicking `index.html`.
 
 ### TODO: DEPENDENCY
-- **`vendor/three.min.js` — Three.js r128 (UMD / global build, ~600 KB), committed.**
-  This is the project's one external dependency.
-- **Why this build:** the r128 global script attaches `window.THREE` and works on
-  both `file://` (double-click `index.html`) and HTTP/HTTPS (Vercel). ES-module
-  Three.js fails to load from `file://` in Chrome, so it is deliberately not used.
-- The game may stream assets in future (the offline requirement has been relaxed),
-  but as of Increment 2.2 everything is still **procedural / asset-free**, so it
-  continues to run fully offline by double-clicking.
+- **`vendor/three.min.js` — Three.js r128 (UMD, ~600 KB), committed.** The one
+  external dependency. The r128 global build works on both `file://` and HTTP/HTTPS;
+  ES-module Three.js fails from `file://`, so it is not used.
 
 ## Controls
-- **Mouse** — look (yaw + clamped pitch). Click the canvas to grab pointer-lock; **Esc** releases.
-- **WASD / arrows** — move relative to facing.
-- **Space or Left-click** — shoot. Either one **snaps the camera to a first-person
-  bullet-cam** down the front of the gun and holds there until the bullet hits
-  something or reaches the end of its range, then reverts to the third-person view.
-- **G** — fire a rocket (5 per match).
+**Desktop:** Mouse look (click canvas for pointer-lock, Esc releases) · **WASD/arrows**
+move · **Space** or **Left-click** shoot (snaps to first-person bullet-cam) ·
+**G** rocket · **M** switch pistol↔machine-gun · **Shift** jump · **C** crouch.
+
+**iPad / touch:** tap **Play** to start (no pointer-lock needed) · **left thumb** =
+floating move stick · **right side** = swipe to look · on-screen buttons **FIRE**,
+**🚀 rocket**, **JUMP**, **DUCK**, **WPN** (weapon switch) and **⏸ pause**.
 
 ## Flag mechanic — A (LOCKED)
 - **Blue flag + Blue base at Nungwi (north).** **Red flag + Red base at the southern
-  end** (between Makunduchi and Kizimkazi).
-- Touch the enemy flag to pick it up (it rides above the carrier); carry it home and
-  touch your own base/flag to score (+1) — **but your own flag must be home to count**.
-- A tagged carrier drops the flag; it returns home after ~5 s (or instantly if the
-  owning team touches it).
-- HUD shows the Red vs Blue capture count. **First to 3 captures wins** → overlay + Restart.
-- The central-hold variant was not built. No round timer this increment.
+  end.** Grab the enemy flag, carry it home, touch your base to score — **your own
+  flag must be home**. A tagged carrier drops it (returns after ~5 s). **First to 3 wins.**
 
 ## The map — Unguja (Zanzibar)
-- A **3D heightfield** whose coastline approximates Unguja: elongated north–south,
-  wider in the north, tapering south, with the **Chwaka Bay / Michamvi peninsula** on
-  the central-east coast and the **Fumba + Kizimkazi finger peninsulas** in the SW.
-- **Hills & high ground** rise inland (a central hill, NW highland, southern hill,
-  northern rise — up to ~110 units), with **sandy beaches** at the waterline and a
-  **rocky tint on steep faces / peaks**. Players, bots, bullets, flags and the camera
-  all follow the terrain height. The coastline is still a wall (movement clamped to
-  the island polygon).
-- The surrounding **sea is animated** — rolling swell with whitecaps, plus
-  **breaking-surf rings** at several beaches.
-- **Scale & pace:** north–south length ≈ **6000 world units**; walk speed ≈ **83.5
-  units/sec** → ~72 s to sprint tip-to-tip. Bullets are fast (≈400 u/s) but still
-  clearly visible and dodgeable; they're also blocked by rising terrain.
-- **13 villages** as landmarks, each a cluster of low-poly huts with a billboarded
-  name label that faces the camera: Nungwi, Kendwa, Matemwe, Kiwengwa, Stone Town,
-  Michamvi, Bwejuu, Paje, **Jozani**, Jambiani, Fumba, Makunduchi, Kizimkazi.
-- **Jozani is a forest you walk *through*** — dozens of individual trees, each a
-  trunk you collide with and weave between (plus a second wood on the NW highland).
-  Other villages and scattered rocks act as cover (block movement and line-of-sight).
+- A **3D heightfield** matching Unguja's coastline (Chwaka Bay / Michamvi peninsula,
+  Fumba + Kizimkazi SW fingers), with **hills & high ground**, **sandy beaches**, and
+  rocky steeps. Everyone + the camera follow the terrain. The coastline is a wall.
+- The **sea is animated** (swell + whitecaps) with **breaking-surf rings** at beaches.
+- **Scale & pace:** ~6000 units N–S; walk speed **83.5 u/s** (~72 s tip-to-tip) — half
+  that while carrying the machine gun.
+- **13 villages** with billboarded labels. **Jozani is a forest you walk through**
+  (individual tree collision); villages and rocks are cover.
 
-## Characters & combat
-- You play a **low-poly soldier**: olive uniform, tactical vest, helmet with a
-  **team-coloured band**, backpack, boots, and a rifle held forward (the rifle is the
-  viewmodel you see in the first-person bullet-cam).
-- Two teams, **3 AI bots each**. Bots pick the nearest enemy, keep rough distance,
-  and shoot on a cooldown (and fight each other). One "runner" per team also goes for
-  the enemy flag.
-- **Rocket launcher (G)** — 5 per player per match: a slower projectile that flies
-  ~320 units then **detonates with an area blast** that tags every enemy nearby.
-  Bots use rockets occasionally. Friendly fire is off (bullets and rockets).
-- A hit is a **tag**: brief flash, freeze, then **respawn at your own base after ~1 s**.
-  No health bar.
+## Weapons & combat
+- **Soldier** model: olive uniform, vest, helmet with team-coloured band, backpack,
+  boots; carries a rifle (the pistol) and a **shoulder-mounted rocket launcher**.
+- **Pistol bullets** — fast (≈1200 u/s, dodgeable at range), shooting snaps to the
+  first-person bullet-cam.
+- **Rocket launcher (G / 🚀)** — **unlimited ammo, one shot every 10 s**. Fired from
+  the shoulder; the rocket **arcs under gravity** (a lob) and **detonates with an area
+  blast** that tags every enemy nearby. HUD shows the reload countdown.
+- **Machine gun** — **pick one up** in the field (belt-fed model, ammo belt out the
+  side). Press **M / WPN** to switch between it and the pistol. While carrying it your
+  **move and turn speed are halved**. It fires a **regenerating 20-round burst**: empty
+  it and it takes ~10 s to refill (regen ~2 rounds/s), so short controlled bursts
+  recover faster than a full dump.
+- **Enemies escalate near their flag:** the closer you get to the **Red flag**, the
+  **more skilful** the red soldiers become (faster aim, faster fire, more rockets) and
+  the **more of them spawn** to defend (up to 7).
+- **Enemy rocket launchers** are area weapons like yours: a bot **telegraphs with an
+  obvious muzzle flash**, then lobs an **arcing rocket toward you** — fast reflexes can
+  dodge it.
+- 3 AI bots per team (plus red reinforcements); a "runner" per team also goes for the
+  flag. A hit is a **tag**: flash, freeze, respawn at base after ~1 s. Friendly fire off.
+- **Jump** and **crouch** (crouch lowers your stance, slows you, and shrinks your profile).
 
 ## Build increments
-- **Increment 1**: Top-down rectangular arena (2D canvas), WASD + mouse-aim movement,
-  slow-bullet shooting, two teams with AI bots, tag/respawn (no scoring or flags).
-- **Increment 2**: Full rewrite to **true 3D (Three.js r128)** — third-person camera,
-  pointer-lock mouse-look, **Zanzibar (Unguja) island map** with 13 villages, and
-  **capture-the-flag mechanic A** (first to 3 wins).
-- **Increment 2.1** (tuning + weapon): island scaled to 3× (~6000 units), faster
-  movement, bullet speed & range ×2, and the **rocket launcher (G)**.
-- **Increment 2.2** (terrain + feel): replaced the flat island with a **procedural
-  heightfield — hills & high ground, sandy beaches, animated sea with whitecaps and
-  breaking-surf rings**; **Jozani became a walk-through forest** (individual tree
-  collision); walk speed doubled again (≈83.5 u/s); shooting (Space or click) now
-  switches to a **first-person bullet-cam** that follows the shot and reverts when it
-  lands; and the player became a **detailed low-poly soldier**.
+- **Increment 1**: 2D top-down arena, movement, slow bullets, AI bots, tag/respawn.
+- **Increment 2**: true 3D (Three.js r128), third-person, Zanzibar island + 13 villages,
+  CTF mechanic A (first to 3).
+- **Increment 2.1**: island ×3, faster movement, ×2 bullets, rocket launcher (G).
+- **Increment 2.2**: procedural heightfield (hills, beaches, animated sea, Jozani forest),
+  ×2 walk speed, first-person bullet-cam on shoot, detailed soldier.
+- **Increment 2.3**: ×3 bullets; **shoulder rocket launcher that arcs**, now **unlimited
+  with a 10 s cooldown**; **proximity-scaled enemy difficulty + reinforcements** near the
+  Red flag; **telegraphed, arcing, area-effect enemy rockets**; a pickup-able **belt-fed
+  machine gun** (M to switch, half speed/turn, regenerating 20-round burst); **jump &
+  crouch**; and full **iPad touch controls** (twin-stick + buttons, tap-to-start).
