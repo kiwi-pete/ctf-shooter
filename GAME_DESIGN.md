@@ -66,7 +66,15 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
   dodge it.
 - 3 AI bots per team (plus red reinforcements); a "runner" per team also goes for the
   flag. A hit is a **tag**: flash, freeze, respawn at base after ~1 s. Friendly fire off.
+- **Squad AI:** fighter-bots are **paired up** and regroup with their buddy, **spread out**
+  so they don't bunch, **approach off-axis (flank) and sneak**, and **take a knee (crouch)**
+  to fire when an enemy is in sight — crouching slows them and shrinks their profile.
 - **Jump** and **crouch** (crouch lowers your stance, slows you, and shrinks your profile).
+- **Army car (E to get in/out):** an open-top military 4×4 with a **mounted turret** parked
+  by the Blue base. It **drives at ×2 walk speed**, the camera pulls back, and the turret
+  aims where you look. The gun holds **40 rounds and regenerates like the machine gun**.
+  The engine **overheats after 20 s of driving** and needs **~18 s to cool** (engine cut
+  while it cools). It **rides over the hills** and **launches into the air off steep crests**.
 
 ## Build increments
 - **Increment 1**: 2D top-down arena, movement, slow bullets, AI bots, tag/respawn.
@@ -84,6 +92,10 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
   see-through player** so you can see ahead, a north-up **Zanzibar minimap** (you,
   bases, flags, hill rings), and subtle ground detail (**contour lines on hills +
   scattered grass specks**) for a sense of motion.
+- **Increment 2.6**: **squad AI** (paired bots that spread, flank and crouch to fire);
+  a drivable **army car** with a **mounted 40-round regenerating turret**, **×2 walk
+  speed**, a **20 s overheat / ~18 s cool-down**, and **hill jumps**; synthesized engine,
+  turret, whistle and explosion audio.
 - **Increment 2.3**: ×3 bullets; **shoulder rocket launcher that arcs**, now **unlimited
   with a 10 s cooldown**; **proximity-scaled enemy difficulty + reinforcements** near the
   Red flag; **telegraphed, arcing, area-effect enemy rockets**; a pickup-able **belt-fed
