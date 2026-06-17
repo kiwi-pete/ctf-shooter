@@ -1,0 +1,5 @@
+# Local Claude Code preview/dev config (not part of the shipped game)
+.claude/
+
+# OS cruft
+.DS_Store
