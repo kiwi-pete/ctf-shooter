@@ -40,6 +40,14 @@
             display: none; white-space: nowrap;
         }
 
+        #ammo {
+            position: absolute; bottom: 52px; left: 50%; transform: translateX(-50%);
+            padding: 6px 16px; border-radius: 10px; font-weight: 700; font-size: 14px; color: #fdba74;
+            background: rgba(15,23,42,0.5); border: 1px solid rgba(255,255,255,0.08);
+        }
+        #ammo.empty { color: #94a3b8; }
+        #ammo .g { opacity: 0.6; font-weight: 600; }
+
         #crosshair {
             position: absolute; top: 50%; left: 50%; width: 22px; height: 22px;
             transform: translate(-50%, -50%); opacity: 0.9;
@@ -118,10 +126,11 @@
             <span class="goal">first to 3</span>
         </div>
         <div id="carry-status"></div>
+        <div id="ammo">🚀 <b id="ammo-count">5</b> rockets <span class="g">(G)</span></div>
         <div id="compass">Heading: <b id="heading">S</b></div>
         <div id="crosshair"></div>
         <div id="damage"></div>
-        <div id="hint"><span>WASD</span> move · <span>Mouse</span> look · <span>Click</span> shoot · <span>Esc</span> release</div>
+        <div id="hint"><span>WASD</span> move · <span>Mouse</span> look · <span>Click</span> shoot · <span>G</span> rocket · <span>Esc</span> release</div>
     </div>
 
     <div class="overlay" id="overlay-start">
@@ -129,7 +138,7 @@
         <p><b>Capture the Flag</b> on the island of Unguja (Zanzibar). You're on the <b style="color:#60a5fa">Blue team</b> at Nungwi in the north.</p>
         <p>Grab the <b style="color:#f87171">Red flag</b> in the south and carry it home to score. First team to <b>3 captures</b> wins. Watch the slow glowing bullets — you can dodge them!</p>
         <div class="keys">
-            <span>W</span><span>A</span><span>S</span><span>D</span> or arrows to move &nbsp;·&nbsp; <span>Mouse</span> to look &nbsp;·&nbsp; <span>Left-click</span> to shoot &nbsp;·&nbsp; <span>Esc</span> to free the mouse
+            <span>W</span><span>A</span><span>S</span><span>D</span> or arrows to move &nbsp;·&nbsp; <span>Mouse</span> to look &nbsp;·&nbsp; <span>Left-click</span> to shoot &nbsp;·&nbsp; <span>G</span> for a rocket (5 per match) &nbsp;·&nbsp; <span>Esc</span> to free the mouse
         </div>
         <div class="pulse">▶ Click to play</div>
     </div>
@@ -167,12 +176,19 @@
         // =====================================================================
         //  CONFIG
         // =====================================================================
-        const ISLAND_LENGTH = 2000;   // north–south world length
-        const BBOX_W        = 1000;   // world width that normalized x [0..1] maps to
-        const RUN_SPEED     = 16.7;   // units/sec  -> south tip to north tip ≈ 120s
-        const BULLET_SPEED  = 200;    // ≈ 12 × run speed (slow, dodgeable)
+        const ISLAND_LENGTH = 6000;   // north–south world length (3× the original 2000)
+        const BBOX_W        = 3000;   // world width that normalized x [0..1] maps to (3×)
+        const RUN_SPEED     = 41.75;  // units/sec (2.5× original) -> tip-to-tip ≈ 144s
+        const BULLET_SPEED  = 400;    // 2× original — still clearly visible & dodgeable
         const BULLET_R      = 3;
-        const BULLET_RANGE  = 820;    // bullets despawn after this distance
+        const BULLET_RANGE  = 1640;   // 2× original — bullets travel twice as far
+        // Rocket launcher (press G): limited-ammo, short-range, area-of-effect power weapon
+        const ROCKET_SPEED  = 300;    // visibly slower than bullets
+        const ROCKET_RANGE  = 320;    // ~"two-thirds of the screen", then it detonates
+        const ROCKET_BLAST  = 78;     // any enemy within this radius of the blast is tagged
+        const ROCKET_AMMO   = 5;      // shots per player, per match
+        const ROCKET_CD     = 0.7;    // min seconds between rockets
+        const ROCKET_R      = 4.5;    // projectile radius
         const PLAYER_R      = 9;      // XZ collision radius
         const BODY_Y        = 11;     // chest height (bullet / hit plane)
         const PICKUP_DIST   = 18;
@@ -315,9 +331,9 @@
         const SKY = 0x8fc8ec;
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(SKY);
-        scene.fog = new THREE.Fog(SKY, 420, 1950);
+        scene.fog = new THREE.Fog(SKY, ISLAND_LENGTH * 0.21, ISLAND_LENGTH * 0.95);
 
-        const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 1, 4500);
+        const camera = new THREE.PerspectiveCamera(62, window.innerWidth / window.innerHeight, 1, ISLAND_LENGTH * 2.3);
         camera.position.set(0, 60, 0);
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -332,7 +348,7 @@
 
         // ---- Sea ----
         const sea = new THREE.Mesh(
-            new THREE.PlaneGeometry(7000, 7000),
+            new THREE.PlaneGeometry(ISLAND_LENGTH * 3.5, ISLAND_LENGTH * 3.5),
             new THREE.MeshLambertMaterial({ color: 0x2c84c2, transparent: true, opacity: 0.92 })
         );
         sea.rotation.x = -Math.PI / 2;
@@ -379,7 +395,9 @@
             gun:      new THREE.BoxGeometry(2.8, 2.8, 12),
             fin:      new THREE.BoxGeometry(7, 5, 1.4),
             blob:     new THREE.CircleGeometry(PLAYER_R + 3.5, 18),
-            bullet:   new THREE.SphereGeometry(BULLET_R, 10, 8)
+            bullet:   new THREE.SphereGeometry(BULLET_R, 10, 8),
+            rktBody:  new THREE.CylinderGeometry(2.4, 2.4, 12, 10),
+            rktNose:  new THREE.ConeGeometry(2.9, 6, 10)
         };
         const M = {
             wall:    new THREE.MeshLambertMaterial({ color: 0xefe2c0 }),
@@ -403,7 +421,9 @@
             redRing:  new THREE.MeshBasicMaterial({ color: 0xf87171 }),
             blueRing: new THREE.MeshBasicMaterial({ color: 0x60a5fa }),
             bulletRed:  new THREE.MeshBasicMaterial({ color: 0xff7b6b }),
-            bulletBlue: new THREE.MeshBasicMaterial({ color: 0x7cc0ff })
+            bulletBlue: new THREE.MeshBasicMaterial({ color: 0x7cc0ff }),
+            rktBody:    new THREE.MeshLambertMaterial({ color: 0x55606e }),
+            rktHead:    new THREE.MeshLambertMaterial({ color: 0xffae3b })
         };
         function teamBody(team)   { return team === 'red' ? M.red   : M.blue; }
         function teamDark(team)   { return team === 'red' ? M.redDk : M.blueDk; }
@@ -616,6 +636,8 @@
                 this.pitch = 0;
                 this.speed = RUN_SPEED;
                 this.cooldown = 0.4 + Math.random() * 0.6;
+                this.rockets = ROCKET_AMMO;  // limited rocket-launcher ammo (per match)
+                this.rocketCD = 0;
                 this.tag = 0;                // >0 => tagged/frozen
                 this.carrying = null;        // a flag object or null
                 this.spawn = { x: 0, z: 0 };
@@ -703,6 +725,47 @@
             bullets.splice(i, 1);
         }
 
+        // ---- Rocket launcher (press G) ----
+        const rockets = [];
+        function buildRocketMesh() {
+            const g = new THREE.Group();
+            const body = new THREE.Mesh(G.rktBody, M.rktBody); body.rotation.x = Math.PI / 2; g.add(body);
+            const nose = new THREE.Mesh(G.rktNose, M.rktHead); nose.rotation.x = Math.PI / 2; nose.position.z = 9; g.add(nose);
+            const tail = new THREE.Sprite(new THREE.SpriteMaterial({
+                map: GLOW_TEX, color: 0xffc14d, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending
+            }));
+            tail.scale.set(24, 24, 1); tail.position.z = -9; g.add(tail);
+            scene.add(g);
+            return g;
+        }
+        function fireRocket(shooter) {
+            if (shooter.rockets <= 0 || shooter.rocketCD > 0) return false;
+            shooter.rockets--; shooter.rocketCD = ROCKET_CD;
+            const dir = { x: Math.sin(shooter.yaw), z: Math.cos(shooter.yaw) };
+            const ox = shooter.x + dir.x * (PLAYER_R + 8);
+            const oz = shooter.z + dir.z * (PLAYER_R + 8);
+            const mesh = buildRocketMesh();
+            mesh.position.set(ox, BODY_Y, oz);
+            mesh.rotation.y = shooter.yaw;
+            rockets.push({ x: ox, z: oz, vx: dir.x * ROCKET_SPEED, vz: dir.z * ROCKET_SPEED,
+                           team: shooter.team, dist: 0, mesh: mesh });
+            spawnEffect(ox, BODY_Y, oz, 0xffd27a, 12, 30, 0.18);
+            return true;
+        }
+        function removeRocket(i) {
+            scene.remove(rockets[i].mesh);
+            rockets[i].mesh.children[2].material.dispose(); // tail glow sprite (unique material)
+            rockets.splice(i, 1);
+        }
+        function explodeRocket(x, z, team) {
+            spawnEffect(x, BODY_Y, z, 0xffb43c, 16, ROCKET_BLAST * 2.4, 0.5);
+            spawnEffect(x, BODY_Y, z, 0xffe7ad, 8, ROCKET_BLAST * 1.4, 0.32);
+            for (const p of players) {                       // area tag (friendly fire stays off)
+                if (p.team === team || p.tag > 0) continue;
+                if ((p.x - x) ** 2 + (p.z - z) ** 2 < ROCKET_BLAST ** 2) p.doTag();
+            }
+        }
+
         const effects = [];
         function spawnEffect(x, y, z, color, from, to, life) {
             const spr = new THREE.Sprite(new THREE.SpriteMaterial({
@@ -732,6 +795,7 @@
         // =====================================================================
         const keys = { f: false, b: false, l: false, r: false };
         let firing = false;
+        let gDown = false;   // edge-trigger for the rocket key (one rocket per press)
         let running = false;   // simulation runs only while pointer is locked
         let gameOver = false;
 
@@ -773,13 +837,17 @@
                 case 'KeyS': case 'ArrowDown':  keys.b = down; break;
                 case 'KeyA': case 'ArrowLeft':  keys.l = down; break;
                 case 'KeyD': case 'ArrowRight': keys.r = down; break;
+                case 'KeyG':
+                    if (down) { if (running && human && human.tag <= 0 && !gDown) { gDown = true; fireRocket(human); } }
+                    else gDown = false;
+                    break;
                 default: return;
             }
             e.preventDefault();
         }
         window.addEventListener('keydown', e => key(e, true));
         window.addEventListener('keyup',   e => key(e, false));
-        window.addEventListener('blur', () => { keys.f = keys.b = keys.l = keys.r = false; firing = false; });
+        window.addEventListener('blur', () => { keys.f = keys.b = keys.l = keys.r = false; firing = false; gDown = false; });
 
         const elDamage = document.getElementById('damage');
         let damageTimer = 0;
@@ -920,14 +988,19 @@
             else faceYaw = e.yaw;
             e.yaw = angleLerp(e.yaw, faceYaw, 4.2 * dt);
 
-            // shooting
+            // shooting — usually bullets, occasionally a rocket when in range with ammo
             if (aimTarget && e.cooldown <= 0) {
                 const want = yawFromDir(aimTarget.x - e.x, aimTarget.z - e.z);
                 const diff = Math.abs(Math.atan2(Math.sin(e.yaw - want), Math.cos(e.yaw - want)));
                 const dist = Math.hypot(aimTarget.x - e.x, aimTarget.z - e.z);
-                if (diff < 0.22 && dist < 340 && lineOfSight(e.x, e.z, aimTarget.x, aimTarget.z)) {
-                    fireBullet(e);
-                    e.cooldown = 1.0 + Math.random() * 1.3;
+                if (diff < 0.22 && lineOfSight(e.x, e.z, aimTarget.x, aimTarget.z)) {
+                    if (e.rockets > 0 && e.rocketCD <= 0 && dist < ROCKET_RANGE * 0.85 && Math.random() < 0.08) {
+                        fireRocket(e);
+                        e.cooldown = 1.3 + Math.random() * 1.0;
+                    } else if (dist < 340) {
+                        fireBullet(e);
+                        e.cooldown = 1.0 + Math.random() * 1.3;
+                    }
                 }
             }
         }
@@ -1010,6 +1083,7 @@
             // timers, respawn
             for (const e of players) {
                 if (e.cooldown > 0) e.cooldown -= dt;
+                if (e.rocketCD > 0) e.rocketCD -= dt;
                 if (e.tag > 0) {
                     e.tag -= dt;
                     if (e.tag <= 0) {
@@ -1087,6 +1161,28 @@
                 if (dead) removeBullet(i);
             }
 
+            // rockets
+            for (let i = rockets.length - 1; i >= 0; i--) {
+                const r = rockets[i];
+                const step = Math.hypot(r.vx, r.vz) * dt;
+                r.x += r.vx * dt; r.z += r.vz * dt; r.dist += step;
+                r.mesh.position.set(r.x, BODY_Y, r.z);
+                if (Math.random() < 0.65) spawnEffect(r.x, BODY_Y, r.z, 0xd9d9d9, 7, 16, 0.3); // smoke trail
+                let boom = r.dist >= ROCKET_RANGE;
+                if (!boom) {
+                    for (const o of OBSTACLES) {
+                        if ((r.x - o.x) ** 2 + (r.z - o.z) ** 2 < (o.r + ROCKET_R) ** 2) { boom = true; break; }
+                    }
+                }
+                if (!boom) {
+                    for (const p of players) {
+                        if (p.team === r.team || p.tag > 0) continue;
+                        if ((r.x - p.x) ** 2 + (r.z - p.z) ** 2 < (PLAYER_R + ROCKET_R) ** 2) { boom = true; break; }
+                    }
+                }
+                if (boom) { explodeRocket(r.x, r.z, r.team); removeRocket(i); }
+            }
+
             updateFlags();
             updateEffects(dt);
         }
@@ -1131,6 +1227,8 @@
         const elScoreB = document.getElementById('score-blue');
         const elCarry  = document.getElementById('carry-status');
         const elHeading= document.getElementById('heading');
+        const elAmmo   = document.getElementById('ammo');
+        const elAmmoCount = document.getElementById('ammo-count');
         function compass(yaw) {
             // forward = (sin yaw, cos yaw); +Z = South, -Z = North, +X = East
             const dirs = ['S', 'SE', 'E', 'NE', 'N', 'NW', 'W', 'SW'];
@@ -1140,7 +1238,11 @@
         function updateHUD() {
             elScoreR.textContent = score.red;
             elScoreB.textContent = score.blue;
-            if (human) elHeading.textContent = compass(human.yaw);
+            if (human) {
+                elHeading.textContent = compass(human.yaw);
+                elAmmoCount.textContent = human.rockets;
+                elAmmo.classList.toggle('empty', human.rockets <= 0);
+            }
             if (human && human.carrying) {
                 elCarry.style.display = 'block';
                 elCarry.style.color = '#fca5a5';
@@ -1164,8 +1266,9 @@
         }
 
         function resetMatch() {
-            // clear bullets & effects
+            // clear bullets, rockets & effects
             while (bullets.length) removeBullet(bullets.length - 1);
+            while (rockets.length) removeRocket(rockets.length - 1);
             while (effects.length) { const e = effects.pop(); scene.remove(e.spr); e.spr.material.dispose(); }
             score.red = 0; score.blue = 0;
             returnHome(flags.red); returnHome(flags.blue);
@@ -1173,6 +1276,7 @@
             for (const e of players) {
                 e.x = e.spawn.x; e.z = e.spawn.z; e.vx = e.vz = 0;
                 e.tag = 0; e.carrying = null; e.cooldown = 0.4 + Math.random() * 0.6;
+                e.rockets = ROCKET_AMMO; e.rocketCD = 0;
                 e.yaw = e.team === 'blue' ? 0 : Math.PI;
             }
             if (human) human.pitch = 0;
@@ -1189,8 +1293,8 @@
 
         // Lightweight debug surface (harmless): inspect/step the sim from the console.
         window.FIA = {
-            players, flags, score, bullets, BASES, OBSTACLES, scene, camera,
-            update, pointInIsland, clampToIsland, ISLAND_POLY,
+            players, flags, score, bullets, rockets, BASES, OBSTACLES, scene, camera,
+            update, fireRocket, explodeRocket, pointInIsland, clampToIsland, ISLAND_POLY,
             get human() { return human; },
             get running() { return running; }
         };

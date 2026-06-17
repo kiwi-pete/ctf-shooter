@@ -52,11 +52,11 @@ Two flags, carry-the-enemy's-home-to-score.
 - Players cannot leave the island — the **coastline is a wall** (movement is
   clamped to the island polygon; bullets simply fly out over the water and
   despawn).
-- **Scale & pace:** north–south length ≈ **2000 world units**; run speed ≈ **16.7
+- **Scale & pace:** north–south length ≈ **6000 world units**; run speed ≈ **41.75
   units/sec**, so a straight sprint from the southern tip to the northern tip
-  takes **~120 seconds**. The long traversal between the opposite-end bases is the
-  core of the game (bullet speed is ~12× run speed — slow enough to watch and
-  dodge).
+  takes **~144 seconds**. The long traversal between the opposite-end bases is the
+  core of the game. Bullets are fast (≈400 u/s) but still clearly visible and
+  dodgeable. (Scaled up in Increment 2.1 — see Build increments.)
 - **13 villages** as landmarks (not objectives), each a cluster of simple
   low-poly huts plus a **floating name label that always faces the camera**
   (billboarded canvas-texture sprite): **Nungwi, Kendwa, Matemwe, Kiwengwa,
@@ -69,8 +69,12 @@ Two flags, carry-the-enemy's-home-to-score.
   distance, and shoot on a cooldown — and they fight each other, not just the
   human. (Per-team one "runner" bot will also opportunistically go for the enemy
   flag, but combat is the bots' main job.)
-- **Slow, clearly visible glowing bullets** (~12× run speed) you can watch and
-  dodge.
+- **Clearly visible glowing bullets** (fast but dodgeable) you can watch and dodge.
+- **Rocket launcher (press `G`)** — every player gets **5 rockets per match**: a
+  slower, clearly visible projectile that flies ~320 units (~"two-thirds of the
+  screen") and then **detonates with an area blast** that tags every enemy nearby.
+  Friendly fire stays off. Bots use rockets occasionally when they have a clear,
+  in-range shot.
 - A hit is a **tag**: brief flash, freeze, then **respawn at your own base after
   ~1 s**. No health bar. **Friendly fire off.**
 
@@ -86,3 +90,7 @@ Two flags, carry-the-enemy's-home-to-score.
   mechanic A** (two flags, carry the enemy's home to score, own flag must be home,
   first to 3 wins). All Increment-1 rules (two teams, fighting bots, dodgeable
   slow bullets, tag = respawn at base) are preserved.
+- **Increment 2.1** (tuning + weapon): island scaled to **3× size** (≈6000 units
+  N–S), character **movement ×2.5** (≈41.75 u/s), **bullet speed & range ×2**, and
+  a new **rocket launcher on `G`** — 5 shots per player, ~320-unit range,
+  area-of-effect blast tag. Camera far-plane, fog, and sea scale with the map.
