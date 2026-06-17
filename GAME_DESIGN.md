@@ -1,96 +1,93 @@
 # Fighting Island Arena — Design Log
 
-A cartoonish, kid-friendly **capture-the-flag** shooter. Two teams (Red vs Blue),
-slow dodgeable bullets, and "tags" instead of kills (no blood/gore — a hit is a
-tag, not a death). The whole game is a single `index.html` plus one vendored
-library, so it is playable by **double-clicking `index.html` locally (offline)**
-and is also served over HTTPS via **Vercel** (auto-deploys on every push to the
-GitHub repo `kiwi-pete/ctf-shooter`).
+A cartoonish, kid-friendly **capture-the-flag** shooter set on the island of Unguja
+(Zanzibar). Two teams (Red vs Blue), slow dodgeable bullets, and "tags" instead of
+kills (no blood/gore — a hit is a tag, not a death). The whole game is a single
+`index.html` plus one vendored library. It auto-deploys to **Vercel** on every push
+to GitHub `kiwi-pete/ctf-shooter`.
 
 ## Engine
 - **Three.js r128**, the classic global-script (**UMD**) build, vendored at
-  `vendor/three.min.js` and loaded with a plain `<script>` tag (exposes
-  `window.THREE`).
-- **True 3D, third-person** — you see your own character from behind via a
-  follow camera positioned behind and slightly above the player.
-- Custom **WASD + pointer-lock mouse-look** controls — no OrbitControls or any
-  add-on files. Everything in the world is built from core `THREE` primitive
-  geometries (boxes, spheres, cones, cylinders, an extruded island polygon).
+  `vendor/three.min.js` and loaded with a plain `<script>` tag (`window.THREE`).
+- **True 3D, third-person** follow camera, with a **first-person bullet-cam** when
+  you shoot (see Controls).
+- Everything in the world — terrain, water, soldiers, trees — is built **procedurally
+  from core `THREE` primitives** (no external textures or models). The map is a
+  **procedural heightfield**, not a flat plane.
 
 ### TODO: DEPENDENCY
-- **`vendor/three.min.js` — Three.js r128 (UMD / global build, ~600 KB), committed to the repo.**
-  This is the project's **one allowed external dependency**.
-- **Why this exact build:** the r128 global script attaches `window.THREE` and
-  works on **both** the `file://` protocol (double-click `index.html`) **and**
-  over HTTP/HTTPS (Vercel). ES-module Three.js (`three.module.js` + import maps)
-  fails to load from `file://` in Chrome, which would break double-click-to-run —
-  so it is deliberately **NOT** used.
-- No build step, no npm, no server, no other libraries, no other external
-  assets. (The Google Fonts `@import` is cosmetic only and degrades gracefully to
-  a system font when offline.)
+- **`vendor/three.min.js` — Three.js r128 (UMD / global build, ~600 KB), committed.**
+  This is the project's one external dependency.
+- **Why this build:** the r128 global script attaches `window.THREE` and works on
+  both `file://` (double-click `index.html`) and HTTP/HTTPS (Vercel). ES-module
+  Three.js fails to load from `file://` in Chrome, so it is deliberately not used.
+- The game may stream assets in future (the offline requirement has been relaxed),
+  but as of Increment 2.2 everything is still **procedural / asset-free**, so it
+  continues to run fully offline by double-clicking.
+
+## Controls
+- **Mouse** — look (yaw + clamped pitch). Click the canvas to grab pointer-lock; **Esc** releases.
+- **WASD / arrows** — move relative to facing.
+- **Space or Left-click** — shoot. Either one **snaps the camera to a first-person
+  bullet-cam** down the front of the gun and holds there until the bullet hits
+  something or reaches the end of its range, then reverts to the third-person view.
+- **G** — fire a rocket (5 per match).
 
 ## Flag mechanic — A (LOCKED)
-Two flags, carry-the-enemy's-home-to-score.
-- **Blue flag + Blue base at Nungwi (north).** **Red flag + Red base at the
-  southern end** (between Makunduchi and Kizimkazi). Bases at opposite ends make
-  the ~2-minute run the core of the game.
-- Touch the enemy flag to pick it up; it rides visibly above the carrier.
-- Carry it home and touch your own base/flag to score (+1) — **but your own flag
-  must be home for the capture to count**.
-- If a carrier is tagged, the flag drops where they fell and returns to its home
-  base after ~5 s (or instantly if the owning team touches it).
-- HUD shows the Red vs Blue capture count. **First to 3 captures wins** → overlay
-  with the winning team and a Restart button.
-- The central-hold variant was **not** built. No round timer this increment.
+- **Blue flag + Blue base at Nungwi (north).** **Red flag + Red base at the southern
+  end** (between Makunduchi and Kizimkazi).
+- Touch the enemy flag to pick it up (it rides above the carrier); carry it home and
+  touch your own base/flag to score (+1) — **but your own flag must be home to count**.
+- A tagged carrier drops the flag; it returns home after ~5 s (or instantly if the
+  owning team touches it).
+- HUD shows the Red vs Blue capture count. **First to 3 captures wins** → overlay + Restart.
+- The central-hold variant was not built. No round timer this increment.
 
 ## The map — Unguja (Zanzibar)
-- A flat **island mesh whose outline approximates Unguja's coastline**: elongated
-  north–south, wider in the north and tapering toward the south, with a
-  pronounced **central-east peninsula enclosing a bay (Chwaka Bay / Michamvi)**
-  and **two finger peninsulas in the south-west (Fumba and the Kizimkazi tip)**.
-  A blue **sea** plane surrounds it; distance fog hides the horizon.
-- Players cannot leave the island — the **coastline is a wall** (movement is
-  clamped to the island polygon; bullets simply fly out over the water and
-  despawn).
-- **Scale & pace:** north–south length ≈ **6000 world units**; run speed ≈ **41.75
-  units/sec**, so a straight sprint from the southern tip to the northern tip
-  takes **~144 seconds**. The long traversal between the opposite-end bases is the
-  core of the game. Bullets are fast (≈400 u/s) but still clearly visible and
-  dodgeable. (Scaled up in Increment 2.1 — see Build increments.)
-- **13 villages** as landmarks (not objectives), each a cluster of simple
-  low-poly huts plus a **floating name label that always faces the camera**
-  (billboarded canvas-texture sprite): **Nungwi, Kendwa, Matemwe, Kiwengwa,
-  Stone Town, Michamvi, Bwejuu, Paje, Jozani (inland forest), Jambiani, Fumba,
-  Makunduchi, Kizimkazi.** Villages and a few scattered rocks act as **cover** —
-  they block movement and break bots' line of sight.
+- A **3D heightfield** whose coastline approximates Unguja: elongated north–south,
+  wider in the north, tapering south, with the **Chwaka Bay / Michamvi peninsula** on
+  the central-east coast and the **Fumba + Kizimkazi finger peninsulas** in the SW.
+- **Hills & high ground** rise inland (a central hill, NW highland, southern hill,
+  northern rise — up to ~110 units), with **sandy beaches** at the waterline and a
+  **rocky tint on steep faces / peaks**. Players, bots, bullets, flags and the camera
+  all follow the terrain height. The coastline is still a wall (movement clamped to
+  the island polygon).
+- The surrounding **sea is animated** — rolling swell with whitecaps, plus
+  **breaking-surf rings** at several beaches.
+- **Scale & pace:** north–south length ≈ **6000 world units**; walk speed ≈ **83.5
+  units/sec** → ~72 s to sprint tip-to-tip. Bullets are fast (≈400 u/s) but still
+  clearly visible and dodgeable; they're also blocked by rising terrain.
+- **13 villages** as landmarks, each a cluster of low-poly huts with a billboarded
+  name label that faces the camera: Nungwi, Kendwa, Matemwe, Kiwengwa, Stone Town,
+  Michamvi, Bwejuu, Paje, **Jozani**, Jambiani, Fumba, Makunduchi, Kizimkazi.
+- **Jozani is a forest you walk *through*** — dozens of individual trees, each a
+  trunk you collide with and weave between (plus a second wood on the NW highland).
+  Other villages and scattered rocks act as cover (block movement and line-of-sight).
 
-## Preserved rules (from Increment 1)
-- Two teams, **3 AI bots each**. Bots pick the nearest enemy, move to keep rough
-  distance, and shoot on a cooldown — and they fight each other, not just the
-  human. (Per-team one "runner" bot will also opportunistically go for the enemy
-  flag, but combat is the bots' main job.)
-- **Clearly visible glowing bullets** (fast but dodgeable) you can watch and dodge.
-- **Rocket launcher (press `G`)** — every player gets **5 rockets per match**: a
-  slower, clearly visible projectile that flies ~320 units (~"two-thirds of the
-  screen") and then **detonates with an area blast** that tags every enemy nearby.
-  Friendly fire stays off. Bots use rockets occasionally when they have a clear,
-  in-range shot.
-- A hit is a **tag**: brief flash, freeze, then **respawn at your own base after
-  ~1 s**. No health bar. **Friendly fire off.**
+## Characters & combat
+- You play a **low-poly soldier**: olive uniform, tactical vest, helmet with a
+  **team-coloured band**, backpack, boots, and a rifle held forward (the rifle is the
+  viewmodel you see in the first-person bullet-cam).
+- Two teams, **3 AI bots each**. Bots pick the nearest enemy, keep rough distance,
+  and shoot on a cooldown (and fight each other). One "runner" per team also goes for
+  the enemy flag.
+- **Rocket launcher (G)** — 5 per player per match: a slower projectile that flies
+  ~320 units then **detonates with an area blast** that tags every enemy nearby.
+  Bots use rockets occasionally. Friendly fire is off (bullets and rockets).
+- A hit is a **tag**: brief flash, freeze, then **respawn at your own base after ~1 s**.
+  No health bar.
 
 ## Build increments
-- **Increment 1**: Top-down rectangular arena (2D canvas), player movement
-  (WASD + mouse aim), slow-bullet shooting, two teams (Red vs Blue) with AI bots,
-  and tag/respawn mechanic (no scoring or flags yet).
-- **Increment 2**: Full rewrite of the render/engine layer to **true 3D with
-  Three.js r128** (third-person follow camera, click-to-pointer-lock mouse-look,
-  WASD relative to facing). Replaced the abstract arena with a **Zanzibar
-  (Unguja) island map** — sculpted coastline + surrounding sea, 13 named villages
-  with billboarded labels, and rocks/huts as cover — and added **capture-the-flag
-  mechanic A** (two flags, carry the enemy's home to score, own flag must be home,
-  first to 3 wins). All Increment-1 rules (two teams, fighting bots, dodgeable
-  slow bullets, tag = respawn at base) are preserved.
-- **Increment 2.1** (tuning + weapon): island scaled to **3× size** (≈6000 units
-  N–S), character **movement ×2.5** (≈41.75 u/s), **bullet speed & range ×2**, and
-  a new **rocket launcher on `G`** — 5 shots per player, ~320-unit range,
-  area-of-effect blast tag. Camera far-plane, fog, and sea scale with the map.
+- **Increment 1**: Top-down rectangular arena (2D canvas), WASD + mouse-aim movement,
+  slow-bullet shooting, two teams with AI bots, tag/respawn (no scoring or flags).
+- **Increment 2**: Full rewrite to **true 3D (Three.js r128)** — third-person camera,
+  pointer-lock mouse-look, **Zanzibar (Unguja) island map** with 13 villages, and
+  **capture-the-flag mechanic A** (first to 3 wins).
+- **Increment 2.1** (tuning + weapon): island scaled to 3× (~6000 units), faster
+  movement, bullet speed & range ×2, and the **rocket launcher (G)**.
+- **Increment 2.2** (terrain + feel): replaced the flat island with a **procedural
+  heightfield — hills & high ground, sandy beaches, animated sea with whitecaps and
+  breaking-surf rings**; **Jozani became a walk-through forest** (individual tree
+  collision); walk speed doubled again (≈83.5 u/s); shooting (Space or click) now
+  switches to a **first-person bullet-cam** that follows the shot and reverts when it
+  lands; and the player became a **detailed low-poly soldier**.
