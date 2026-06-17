@@ -611,7 +611,7 @@
             g._blob.position.set(e.x,e.y+0.4,e.z); g._blob.visible=vis&&!(e===human&&viewMode==='fpv'); } }
         function updateCamera(){ if(!human) return;
             if(camRocket){ if(rockets.indexOf(camRocket)===-1){ camRocket=null; } else { const v=camRocket,vl=Math.hypot(v.vx,v.vy,v.vz)||1,fx=v.vx/vl,fy=v.vy/vl,fz=v.vz/vl;
-                const cx=v.x-fx*42,cz=v.z-fz*42; let cy=v.y-fy*42+16; const gc=terrainH(cx,cz)+5; if(cy<gc) cy=gc; camera.position.set(cx,cy,cz); camera.lookAt(v.x+fx*24,v.y+fy*24,v.z+fz*24); return; } }
+                const cx=v.x-fx*92,cz=v.z-fz*92; let cy=v.y-fy*92+32; const gc=terrainH(cx,cz)+5; if(cy<gc) cy=gc; camera.position.set(cx,cy,cz); camera.lookAt(v.x+fx*20,v.y+fy*20,v.z+fz*20); return; } }
             if(camHold>0&&camHoldTgt){ camera.position.set(camHoldCamX,camHoldCamY,camHoldCamZ); camera.lookAt(camHoldTgt.x,camHoldTgt.y,camHoldTgt.z); return; }
             const f={x:Math.sin(human.yaw),z:Math.cos(human.yaw)},cr=human.crouch?CROUCH_DROP:0;
             if(viewMode==='fpv'&&fpvBullet&&bullets.indexOf(fpvBullet)!==-1){ const eye=human.y+EYE_Y-cr,d=aimDir(human); camera.position.set(human.x+f.x*1.5,eye+1.5,human.z+f.z*1.5); camera.lookAt(human.x+d.x*60,eye+1.5+d.y*60,human.z+d.z*60); return; }
