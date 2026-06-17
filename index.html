@@ -105,13 +105,13 @@
         <div id="carry-status"></div>
         <div id="toast"></div>
         <div id="weapon"></div>
-        <div id="ammo">🚀 Rocket ready <span class="g">(G)</span></div>
+        <div id="ammo">🚀 Rocket ready <span class="g">(R)</span></div>
         <div id="air">✈️ 3</div>
         <div id="compass">Heading: <b id="heading">S</b></div>
         <canvas id="minimap" width="120" height="216"></canvas>
         <div id="crosshair"></div>
         <div id="damage"></div>
-        <div id="hint"><span>WASD</span> move · <span>Mouse</span> look · <span>Space/Click</span> shoot · <span>G</span> rocket · <span>Shift</span> jump · <span>C</span> crouch · <span>Esc</span> release</div>
+        <div id="hint"><span>WASD</span> move · <span>Mouse</span> look · <span>Space/Click</span> shoot · <span>R</span> rocket · <span>Shift</span> jump · <span>C</span> crouch · <span>Esc</span> release</div>
     </div>
 
     <div id="touch-controls">
@@ -132,7 +132,7 @@
         <h1>Fighting Island Arena</h1>
         <p><b>Capture the Flag</b> on the island of Unguja (Zanzibar). You're a <b style="color:#60a5fa">Blue</b> soldier at Nungwi in the north.</p>
         <p>Climb the hills, push through Jozani forest, grab the <b style="color:#f87171">Red flag</b> in the south and run it home. First to <b>3 captures</b> wins.</p>
-        <div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> move · <span>Mouse</span> look · <span>Space</span>/<span>Click</span> shoot (first-person bullet-cam) · <span>G</span> rocket · <span>Shift</span> jump · <span>C</span> crouch · <span>Esc</span> free mouse</div>
+        <div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> move · <span>Mouse</span> look · <span>Space</span>/<span>Click</span> shoot (first-person bullet-cam) · <span>R</span> rocket · <span>Shift</span> jump · <span>C</span> crouch · <span>Esc</span> free mouse</div>
         <div class="pulse" id="start-pulse">▶ Click to play</div>
     </div>
     <div class="overlay hidden" id="overlay-pause"><h2>Paused</h2><p>Tap or click to resume.</p><div class="pulse">▶ Resume</div></div>
@@ -422,16 +422,19 @@
             g.add(new THREE.Mesh(G.planeWing,M.concrete)); const tail=new THREE.Mesh(G.planeTail,M.concrete); tail.position.set(0,2,-13); g.add(tail); const fin=new THREE.Mesh(G.planeFin,M.concreteDk); fin.position.set(0,4.5,-13); g.add(fin); return g; }
         function crosshairGround(){ camera.getWorldDirection(_cwd); let px=camera.position.x,py=camera.position.y,pz=camera.position.z; for(let t=0;t<3500;t+=18){ px+=_cwd.x*18; py+=_cwd.y*18; pz+=_cwd.z*18; if(py<terrainH(px,pz)) return {x:px,z:pz}; } return {x:human.x+Math.sin(human.yaw)*500,z:human.z+Math.cos(human.yaw)*500}; }
         function callAirstrike(){ if(!human||human.airstrikes<=0||human.tag>0) return; human.airstrikes--; const tgt=crosshairGround();
-            const ang=Math.random()*Math.PI*2, sx=tgt.x+Math.cos(ang)*1600, sz=tgt.z+Math.sin(ang)*1600, alt=470; let dx=tgt.x-sx,dz=tgt.z-sz; const dl=Math.hypot(dx,dz)||1; dx/=dl; dz/=dl;
+            const fb=Math.atan2(Math.cos(human.yaw),Math.sin(human.yaw)), ang=fb+(Math.random()*2-1)*(Math.PI/3);   // approach from the front ±60°
+            const sx=tgt.x+Math.cos(ang)*1700, sz=tgt.z+Math.sin(ang)*1700, alt=380; let dx=tgt.x-sx,dz=tgt.z-sz; const dl=Math.hypot(dx,dz)||1; dx/=dl; dz/=dl;
             const plane=buildPlane(); plane.position.set(sx,alt,sz); plane.rotation.y=Math.atan2(dx,dz); scene.add(plane);
             const mk=new THREE.Mesh(new THREE.RingGeometry(BOMB_BLAST*0.55,BOMB_BLAST*0.68,30),new THREE.MeshBasicMaterial({color:0xff3b3b,transparent:true,opacity:0.7,depthWrite:false,side:THREE.DoubleSide})); mk.rotation.x=-Math.PI/2; mk.position.set(tgt.x,terrainH(tgt.x,tgt.z)+1,tgt.z); scene.add(mk);
             planes.push({mesh:plane,x:sx,y:alt,z:sz,dx:dx,dz:dz,tgt:tgt,marker:mk,dropped:false}); toast('✈️ Airstrike inbound!'); }
         function explodeBomb(x,z){ const y=terrainH(x,z); spawnEffect(x,y+10,z,0xff7a2a,20,BOMB_BLAST*2.2,0.7); spawnEffect(x,y+10,z,0xffd27a,12,BOMB_BLAST*1.5,0.5); spawnEffect(x,y+10,z,0x6b4a2a,16,BOMB_BLAST*1.2,0.9);
             for(const p of players){ if(!human||p.team===human.team||p.tag>0) continue; if((p.x-x)**2+(p.z-z)**2<BOMB_BLAST**2) p.doTag(); } }
         function updateAirstrikes(dt){
-            for(let i=planes.length-1;i>=0;i--){ const pl=planes[i]; pl.x+=pl.dx*430*dt; pl.z+=pl.dz*430*dt; pl.mesh.position.set(pl.x,pl.y,pl.z);
-                if(!pl.dropped && Math.hypot(pl.x-pl.tgt.x,pl.z-pl.tgt.z)<46){ pl.dropped=true; const bm=new THREE.Mesh(G.bomb,M.concreteDk); bm.position.set(pl.x,pl.y-8,pl.z); scene.add(bm); bombs.push({x:pl.x,y:pl.y-8,z:pl.z,vy:0,tgt:pl.tgt,mesh:bm,marker:pl.marker}); }
-                else if(pl.dropped && Math.hypot(pl.x-pl.tgt.x,pl.z-pl.tgt.z)>1700){ scene.remove(pl.mesh); planes.splice(i,1); } }
+            for(let i=planes.length-1;i>=0;i--){ const pl=planes[i]; const PS=230;
+                if(!pl.dropped){ pl.x+=pl.dx*PS*dt; pl.z+=pl.dz*PS*dt; pl.mesh.position.set(pl.x,pl.y,pl.z); pl.mesh.rotation.set(0,Math.atan2(pl.dx,pl.dz),0);
+                    if(Math.hypot(pl.x-pl.tgt.x,pl.z-pl.tgt.z)<48){ pl.dropped=true; pl.turn=(Math.random()<0.5?1:-1)*0.85; const bm=new THREE.Mesh(G.bomb,M.concreteDk); bm.position.set(pl.x,pl.y-8,pl.z); scene.add(bm); bombs.push({x:pl.x,y:pl.y-8,z:pl.z,vy:0,tgt:pl.tgt,mesh:bm,marker:pl.marker}); } }
+                else { const a=Math.atan2(pl.dx,pl.dz)+pl.turn*dt; pl.dx=Math.sin(a); pl.dz=Math.cos(a); pl.x+=pl.dx*PS*1.2*dt; pl.z+=pl.dz*PS*1.2*dt; pl.y+=80*dt; pl.mesh.position.set(pl.x,pl.y,pl.z); pl.mesh.rotation.set(0,a,-Math.sign(pl.turn)*0.7);   // bank & climb away
+                    if(Math.hypot(pl.x-pl.tgt.x,pl.z-pl.tgt.z)>1700){ scene.remove(pl.mesh); planes.splice(i,1); } } }
             for(let i=bombs.length-1;i>=0;i--){ const bm=bombs[i]; bm.vy-=300*dt; bm.y+=bm.vy*dt; bm.mesh.position.set(bm.x,bm.y,bm.z);
                 if(bm.y<=terrainH(bm.tgt.x,bm.tgt.z)){ explodeBomb(bm.tgt.x,bm.tgt.z); scene.remove(bm.mesh); if(bm.marker) scene.remove(bm.marker); bombs.splice(i,1); } } }
 
@@ -462,7 +465,7 @@
             case 'KeyW': case 'ArrowUp': keys.f=down; break; case 'KeyS': case 'ArrowDown': keys.b=down; break;
             case 'KeyA': case 'ArrowLeft': keys.l=down; break; case 'KeyD': case 'ArrowRight': keys.r=down; break;
             case 'Space': if(down){ if(running&&!spaceDown){ spaceDown=true; playerShoot(); } } else spaceDown=false; break;
-            case 'KeyG': if(down){ if(running&&human&&human.tag<=0&&!gDown){ gDown=true; fireRocket(human); } } else gDown=false; break;
+            case 'KeyR': if(down){ if(running&&human&&human.tag<=0&&!gDown){ gDown=true; fireRocket(human); } } else gDown=false; break;
             case 'KeyC': if(down){ if(running&&human&&!cDown){ cDown=true; human.crouch=!human.crouch; } } else cDown=false; break;
             case 'ShiftLeft': case 'ShiftRight': if(down){ if(running&&!jDown){ jDown=true; jump(); } } else jDown=false; break;
             case 'KeyM': if(down){ if(running&&human&&human.hasMG&&!mDown){ mDown=true; human.weapon=(human.weapon==='mg'?'pistol':'mg'); } } else mDown=false; break;
@@ -608,7 +611,7 @@
         const elScoreR=document.getElementById('score-red'),elScoreB=document.getElementById('score-blue'),elCarry=document.getElementById('carry-status'),elHeading=document.getElementById('heading'),elAmmo=document.getElementById('ammo'),elWeapon=document.getElementById('weapon'),elAir=document.getElementById('air'),elHpFill=document.getElementById('hp-fill'),elArFill=document.getElementById('ar-fill'),elHpLabel=document.getElementById('hp-label');
         function compass(yaw){ const dirs=['S','SE','E','NE','N','NW','W','SW'],a=((Math.atan2(Math.sin(yaw),Math.cos(yaw))+Math.PI*2)%(Math.PI*2)); return dirs[Math.round(a/(Math.PI/4))%8]; }
         function updateHUD(){ elScoreR.textContent=score.red; elScoreB.textContent=score.blue;
-            if(human){ elHeading.textContent=compass(human.yaw); const cd=human.rocketCD; if(cd>0.05){ elAmmo.classList.add('empty'); elAmmo.innerHTML='🚀 Reloading '+Math.ceil(cd)+'s'; } else { elAmmo.classList.remove('empty'); elAmmo.innerHTML='🚀 Rocket ready <span class="g">(G)</span>'; }
+            if(human){ elHeading.textContent=compass(human.yaw); const cd=human.rocketCD; if(cd>0.05){ elAmmo.classList.add('empty'); elAmmo.innerHTML='🚀 Reloading '+Math.ceil(cd)+'s'; } else { elAmmo.classList.remove('empty'); elAmmo.innerHTML='🚀 Rocket ready <span class="g">(R)</span>'; }
                 if(human.weapon==='mg'){ elWeapon.style.display='block'; elWeapon.textContent='🔫 MG  '+Math.floor(human.mgAmmo)+'/'+MG_MAX; } else if(human.hasMG){ elWeapon.style.display='block'; elWeapon.textContent='🔫 Pistol — M/WPN to switch'; } else elWeapon.style.display='none';
                 elAir.textContent='✈️ '+human.airstrikes;
                 const hpc=Math.max(0,Math.round(human.hp)); elHpFill.style.width=hpc+'%'; elHpFill.style.background=hpc>50?'#46d65f':(hpc>25?'#f5c542':'#ef4444'); elArFill.style.width=Math.max(0,Math.round(human.armour))+'%'; elHpLabel.textContent=hpc; }
