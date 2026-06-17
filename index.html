@@ -156,7 +156,7 @@
         const RUN_SPEED = 83.5;
         const BULLET_SPEED = 1200, BULLET_R = 3, BULLET_RANGE = 3280;   // 3× faster, travels 2× as far
         // Rocket launcher: unlimited ammo, ONE shot per 10s, lobbed in a gravity arc
-        const ROCKET_SPEED = 240, ROCKET_VY0 = 135, ROCKET_GRAV = 185, ROCKET_MAXDIST = 900, ROCKET_BLAST = 80, ROCKET_CD = 10, ROCKET_R = 5;
+        const ROCKET_SPEED = 360, ROCKET_VY0 = 200, ROCKET_GRAV = 160, ROCKET_MAXDIST = 1800, ROCKET_BLAST = 80, ROCKET_CD = 10, ROCKET_R = 5;  // ~2× range, higher arc
         const PLAYER_R = 9, BODY_OFF = 11, GUN_Y = 13, EYE_Y = 19;
         const JUMP_V = 80, GRAVITY = 215, CROUCH_SPEED = 0.5, CROUCH_DROP = 9;
         const MG_MAX = 20, MG_REGEN = 2, MG_FIRE_DT = 0.1, MG_SPEED_MULT = 0.5;   // belt-fed machine gun
@@ -394,7 +394,9 @@
         const bullets=[];
         function aimDir(e){ const cp=Math.cos(e.pitch),sp=Math.sin(e.pitch); return {x:Math.sin(e.yaw)*cp,y:sp,z:Math.cos(e.yaw)*cp}; }   // 3D aim incl. up/down pitch
         const _cwd=new THREE.Vector3();
-        function shotDir(shooter){ if(shooter===human){ camera.getWorldDirection(_cwd); return {x:_cwd.x,y:_cwd.y,z:_cwd.z}; } return aimDir(shooter); }   // human bullets follow the crosshair
+        function crosshairPoint(){ camera.getWorldDirection(_cwd); let px=camera.position.x,py=camera.position.y,pz=camera.position.z;   // ray-march to the world point under the crosshair
+            for(let t=0;t<BULLET_RANGE;t+=16){ px+=_cwd.x*16; py+=_cwd.y*16; pz+=_cwd.z*16; if(py<terrainH(px,pz)) return {x:px,y:py,z:pz}; } return {x:px,y:py,z:pz}; }
+        function shotDir(shooter){ if(shooter===human){ const tp=crosshairPoint(),mx=shooter.x,my=shooter.y+GUN_Y,mz=shooter.z; let dx=tp.x-mx,dy=tp.y-my,dz=tp.z-mz; const dl=Math.hypot(dx,dy,dz)||1; return {x:dx/dl,y:dy/dl,z:dz/dl}; } return aimDir(shooter); }   // human shots converge on the crosshair point (fixes hill aiming)
         function fireBullet(shooter){ const d=shotDir(shooter); const ox=shooter.x+d.x*(PLAYER_R+5),oz=shooter.z+d.z*(PLAYER_R+5),oy=shooter.y+GUN_Y-(shooter.crouch?CROUCH_DROP:0)+d.y*(PLAYER_R+5);
             const grp=new THREE.Group(); grp.add(new THREE.Mesh(G.bullet,shooter.team==='red'?M.bulletRed:M.bulletBlue));
             const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:shooter.team==='red'?0xff5a45:0x55a8ff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); halo.scale.set(20,20,1); grp.add(halo); grp.position.set(ox,oy,oz); scene.add(grp);
@@ -571,8 +573,10 @@
             if(human&&human.tag<=0&&human.airborne){ human.vy-=GRAVITY*dt; human.y+=human.vy*dt; const gy=terrainH(human.x,human.z); if(human.y<=gy){ human.y=gy; human.vy=0; human.airborne=false; } }
             for(let i=0;i<players.length;i++){ const a=players[i]; if(a.tag>0) continue; for(let j=i+1;j<players.length;j++){ const b=players[j]; if(b.tag>0) continue; const dx=a.x-b.x,dz=a.z-b.z,d=Math.hypot(dx,dz),min=PLAYER_R*2; if(d<min&&d>0.0001){ const p=(min-d)*0.5; a.x+=(dx/d)*p; a.z+=(dz/d)*p; b.x-=(dx/d)*p; b.z-=(dz/d)*p; } } }
             for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i],step=Math.hypot(b.vx,b.vz)*dt; b.x+=b.vx*dt; b.z+=b.vz*dt; b.y+=(b.vy||0)*dt; b.dist+=step; b.mesh.position.set(b.x,b.y,b.z);
-                let dead=b.dist>BULLET_RANGE||b.y<terrainH(b.x,b.z);
-                if(!dead) for(const o of OBSTACLES){ if((b.x-o.x)**2+(b.z-o.z)**2<(o.r+BULLET_R)**2){ dead=true; spawnEffect(b.x,b.y,b.z,0xdddddd,5,12,0.18); break; } }
+                let dead=false; const gy=terrainH(b.x,b.z);
+                if(b.y<gy){ dead=true; spawnEffect(b.x,gy+1.5,b.z,0xcabfa0,3,15,0.25); spawnEffect(b.x,gy+1.5,b.z,0x8a7d5e,2,9,0.18); }   // ground-impact dust puff
+                else if(b.dist>BULLET_RANGE){ dead=true; }
+                if(!dead) for(const o of OBSTACLES){ if((b.x-o.x)**2+(b.z-o.z)**2<(o.r+BULLET_R)**2){ dead=true; spawnEffect(b.x,b.y,b.z,0xdddddd,4,14,0.2); break; } }
                 if(!dead) for(const p of players){ if(p.team===b.team||p.tag>0) continue; if((b.x-p.x)**2+(b.z-p.z)**2<(PLAYER_R+BULLET_R)**2){ hit(p,BULLET_DMG); dead=true; break; } }
                 if(dead) removeBullet(i); }
             for(let i=rockets.length-1;i>=0;i--){ const r=rockets[i]; r.vy-=ROCKET_GRAV*dt; const hstep=Math.hypot(r.vx,r.vz)*dt; r.x+=r.vx*dt; r.y+=r.vy*dt; r.z+=r.vz*dt; r.dist+=hstep;
