@@ -166,7 +166,7 @@
         const ROCKET_WIND = 0.45;                 // enemy launcher telegraph (muzzle flash) before launch
         const THREAT_RANGE = 1500, MAX_RED = 7;   // difficulty rises as you near the Red flag
         const MAX_HP = 100, BULLET_DMG = 34, ARMOUR_MAX = 100, INV_TIMESCALE = 0.25, AIRSTRIKES = 3, BOMB_BLAST = 120;
-        const WALL_TIME = 5, PILLBOX_TIME = 10, BUILD_DIST = 30, TURRET_RANGE = 380, TURRET_CD = 0.7;   // buildable defenses
+        const WALL_TIME = 2.5, PILLBOX_TIME = 5, BUILD_DIST = 30, SNAP_RANGE = 55, TURRET_RANGE = 380, TURRET_CD = 0.7;   // buildable defenses
         const PICKUP_DIST = 18, BASE_R = 44, WIN_SCORE = 3, TAG_TIME = 1.0, FLAG_DROP_TIME = 5.0;
         const CAM_DIST = 56, CAM_HEIGHT = 64, FPV_MAX = 5.0;
         const SENS_YAW = 0.0023, SENS_PITCH = 0.0021, PITCH_MIN = -0.95, PITCH_MAX = 0.95;
@@ -284,7 +284,7 @@
             mgBody:new THREE.BoxGeometry(3.6,3.6,17), mgBarrel:new THREE.CylinderGeometry(0.7,0.7,12,8), mgRecv:new THREE.BoxGeometry(3.2,4.2,6), mgAmmo:new THREE.BoxGeometry(5,5,6), mgBelt:new THREE.BoxGeometry(8,1.3,2.6),
             bldgBig:new THREE.BoxGeometry(34,42,30), bldgSm:new THREE.BoxGeometry(24,30,24), roofFlat:new THREE.BoxGeometry(37,3,33), armourV:new THREE.BoxGeometry(11,12,5),
             planeFus:new THREE.CylinderGeometry(3,3,30,8), planeWing:new THREE.BoxGeometry(46,1.6,8), planeTail:new THREE.BoxGeometry(14,1.2,5), planeFin:new THREE.BoxGeometry(1.4,7,5), bomb:new THREE.SphereGeometry(3,8,7),
-            wall:new THREE.BoxGeometry(34,26,7), pillBase:new THREE.BoxGeometry(24,15,24), pillRoof:new THREE.BoxGeometry(27,4,27), pillGun:new THREE.BoxGeometry(2.6,2.6,13) };
+            wall:new THREE.BoxGeometry(34,26,7), pillBase:new THREE.BoxGeometry(24,30,24), pillRoof:new THREE.BoxGeometry(27,4,27), pillGun:new THREE.BoxGeometry(2.6,2.6,13) };
         const M={ wall:new THREE.MeshLambertMaterial({color:0xefe2c0}), roof:new THREE.MeshLambertMaterial({color:0xb5552f}), rock:new THREE.MeshLambertMaterial({color:0x9aa3ab}),
             trunk:new THREE.MeshLambertMaterial({color:0x7a5230}), leaf:new THREE.MeshLambertMaterial({color:0x3f9d4f}), leafDk:new THREE.MeshLambertMaterial({color:0x2f7d3c}),
             blob:new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.22,depthWrite:false}), skin:new THREE.MeshLambertMaterial({color:0xe8b48c}), dark:new THREE.MeshLambertMaterial({color:0x23262e}),
@@ -472,28 +472,36 @@
                 if(bm.y<=terrainH(bm.tgt.x,bm.tgt.z)){ explodeBomb(bm.tgt.x,bm.tgt.z); scene.remove(bm.mesh); if(bm.marker) scene.remove(bm.marker); bombs.splice(i,1); } } }
 
         // ---- buildable defenses (from the inventory): wall (5s) + auto-gun pillbox (10s) ----
-        function startBuild(type){ if(!human||building) return; const f={x:Math.sin(human.yaw),z:Math.cos(human.yaw)}; const c=clampToIsland({x:human.x+f.x*BUILD_DIST,z:human.z+f.z*BUILD_DIST},PLAYER_R+8); const by=terrainH(c.x,c.z);
-            const ghost=new THREE.Mesh(type==='wall'?G.wall:G.pillBase,M.ghost); ghost.rotation.y=(type==='wall'?human.yaw:0); ghost.scale.y=0.05; ghost.position.set(c.x,by+(type==='wall'?26:15)*0.025,c.z); scene.add(ghost);
-            building={type:type,x:c.x,y:by,z:c.z,yaw:(type==='wall'?human.yaw:0),t:0,dur:(type==='wall'?WALL_TIME:PILLBOX_TIME),ghost:ghost,ox:human.x,oz:human.z}; toast('🔨 Building '+(type==='wall'?'wall':'pillbox')+' — stay close'); }
+        function nearestWall(px,pz){ let best=null,bd=SNAP_RANGE*SNAP_RANGE; for(const bs of builtStructures){ if(bs.type!=='wall') continue; const d=(bs.obs.x-px)**2+(bs.obs.z-pz)**2; if(d<bd){bd=d;best=bs;} } return best; }
+        function wallSlotTaken(x,z){ for(const bs of builtStructures){ if((bs.obs.x-x)**2+(bs.obs.z-z)**2<14*14) return true; } return false; }
+        function startBuild(type){ if(!human||building) return; const f={x:Math.sin(human.yaw),z:Math.cos(human.yaw)}; const dp=clampToIsland({x:human.x+f.x*BUILD_DIST,z:human.z+f.z*BUILD_DIST},PLAYER_R+8);
+            let bx=dp.x, bz=dp.z, yaw=(type==='wall'?human.yaw:0);
+            const sn=nearestWall(dp.x,dp.z);   // join neatly to an adjacent wall
+            if(sn){ const ty=sn.yaw,tx=Math.cos(ty),tz=-Math.sin(ty),off=17+(type==='wall'?17:12); const cand=[{x:sn.obs.x+tx*off,z:sn.obs.z+tz*off},{x:sn.obs.x-tx*off,z:sn.obs.z-tz*off}];
+                cand.sort((a,b)=>((a.x-dp.x)**2+(a.z-dp.z)**2)-((b.x-dp.x)**2+(b.z-dp.z)**2)); for(const cp of cand){ if(!wallSlotTaken(cp.x,cp.z)){ bx=cp.x; bz=cp.z; yaw=ty; break; } } }
+            const cc=clampToIsland({x:bx,z:bz},PLAYER_R+8); bx=cc.x; bz=cc.z; const by=terrainH(bx,bz), H=(type==='wall'?26:30);
+            const ghost=new THREE.Mesh(type==='wall'?G.wall:G.pillBase,M.ghost); ghost.rotation.y=yaw; ghost.scale.y=0.05; ghost.position.set(bx,by+H*0.025,bz); scene.add(ghost);
+            building={type:type,x:bx,y:by,z:bz,yaw:yaw,t:0,dur:(type==='wall'?WALL_TIME:PILLBOX_TIME),ghost:ghost,ox:human.x,oz:human.z}; toast('🔨 Building '+(type==='wall'?'wall':'pillbox')+' — stay close'); }
         function cancelBuild(){ if(!building) return; scene.remove(building.ghost); building=null; toast('Build cancelled'); }
         function updateBuild(dt){ if(!building) return; const b=building; if(!human||human.tag>0||(human.x-b.ox)**2+(human.z-b.oz)**2>45*45){ cancelBuild(); return; }
-            b.t+=dt; const p=Math.min(1,b.t/b.dur),H=(b.type==='wall'?26:15); b.ghost.scale.y=Math.max(0.05,p); b.ghost.position.y=b.y+H*b.ghost.scale.y/2;
+            b.t+=dt; const p=Math.min(1,b.t/b.dur),H=(b.type==='wall'?26:30); b.ghost.scale.y=Math.max(0.05,p); b.ghost.position.y=b.y+H*b.ghost.scale.y/2;
             if(Math.random()<0.4) spawnEffect(b.x+(Math.random()-0.5)*20,b.y+6,b.z+(Math.random()-0.5)*20,0x9fd8ff,4,12,0.3);
             if(b.t>=b.dur) completeBuild(); }
         function completeBuild(){ const b=building; building=null; scene.remove(b.ghost);
             const grp=new THREE.Group(); grp.position.set(b.x,b.y,b.z); grp.rotation.y=b.yaw; const mat=M.concrete.clone(); let r,hp,gunRef=null;
             if(b.type==='wall'){ const w=new THREE.Mesh(G.wall,mat); w.position.y=13; grp.add(w); r=16; hp=90; }
-            else { const base=new THREE.Mesh(G.pillBase,mat); base.position.y=7.5; grp.add(base); const roof=new THREE.Mesh(G.pillRoof,M.concreteDk.clone()); roof.position.y=16; grp.add(roof);
-                gunRef=new THREE.Group(); gunRef.position.set(0,13,0); const barrel=new THREE.Mesh(G.pillGun,M.gun); barrel.position.z=7; gunRef.add(barrel); grp.add(gunRef); r=14; hp=120; }
-            scene.add(grp); const obs={x:b.x,z:b.z,y:b.y,r:r,grp:grp,mats:[mat],baseCols:[mat.color.clone()],hp:hp,maxhp:hp,kind:'building'}; OBSTACLES.push(obs); builtStructures.push({grp:grp,obs:obs});
-            if(gunRef) turrets.push({x:b.x,y:b.y,z:b.z,cd:1.0,gun:gunRef,obs:obs});
-            spawnEffect(b.x,b.y+12,b.z,0x9fd8ff,8,42,0.5); toast((b.type==='wall'?'🧱 Wall':'📦 Pillbox')+' built!'); }
+            else { const base=new THREE.Mesh(G.pillBase,mat); base.position.y=15; grp.add(base); const roof=new THREE.Mesh(G.pillRoof,M.concreteDk.clone()); roof.position.y=31; grp.add(roof);
+                gunRef=new THREE.Group(); gunRef.position.set(0,26,0); const barrel=new THREE.Mesh(G.pillGun,M.gun); barrel.position.z=7; gunRef.add(barrel); grp.add(gunRef); r=14; hp=140; }
+            scene.add(grp); const obs={x:b.x,z:b.z,y:b.y,r:r,grp:grp,mats:[mat],baseCols:[mat.color.clone()],hp:hp,maxhp:hp,kind:'building'}; OBSTACLES.push(obs); builtStructures.push({grp:grp,obs:obs,type:b.type,yaw:b.yaw});
+            if(gunRef) turrets.push({x:b.x,y:b.y,z:b.z,cd:1.0,gun:gunRef,grpYaw:b.yaw,obs:obs});
+            spawnEffect(b.x,b.y+14,b.z,0x9fd8ff,8,42,0.5); toast((b.type==='wall'?'🧱 Wall':'📦 Pillbox')+' built!');
+            if(b.type==='wall'&&key3Held&&running) startBuild('wall'); }   // hold 3 to keep extending a wall line
         function updateTurrets(dt){ for(let i=turrets.length-1;i>=0;i--){ const t=turrets[i]; if(t.obs&&t.obs.broken){ turrets.splice(i,1); continue; } if(t.cd>0) t.cd-=dt;
             let best=null,bd=TURRET_RANGE*TURRET_RANGE; for(const p of players){ if(p.team==='blue'||p.tag>0) continue; const dd=(p.x-t.x)**2+(p.z-t.z)**2; if(dd<bd){ bd=dd; best=p; } }
-            if(best){ const yaw=Math.atan2(best.x-t.x,best.z-t.z); if(t.gun) t.gun.rotation.y=yaw; if(t.cd<=0){ fireBullet({team:'blue',x:t.x,z:t.z,y:t.y+8,yaw:yaw,pitch:0,crouch:false}); t.cd=TURRET_CD; } } } }
+            if(best){ const yaw=Math.atan2(best.x-t.x,best.z-t.z); if(t.gun) t.gun.rotation.y=yaw-(t.grpYaw||0); if(t.cd<=0){ fireBullet({team:'blue',x:t.x,z:t.z,y:t.y+24,yaw:yaw,pitch:0,crouch:false}); t.cd=TURRET_CD; } } } }
 
         // ===================== INPUT =====================
-        const keys={f:false,b:false,l:false,r:false}; let firing=false, gDown=false, spaceDown=false, cDown=false, jDown=false, mDown=false, iDown=false, bDown=false;
+        const keys={f:false,b:false,l:false,r:false}; let firing=false, gDown=false, spaceDown=false, cDown=false, jDown=false, mDown=false, iDown=false, bDown=false, key3Held=false;
         let running=false, gameOver=false, viewMode='third', fpvBullet=null, fpvTimer=0, inventoryOpen=false;
         const touchMove={x:0,y:0};
         const isTouch = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window) || location.search.indexOf('touch')>=0;
@@ -527,8 +535,8 @@
             case 'KeyI': if(down){ if(running&&!iDown){ iDown=true; if(inventoryOpen) closeInventory(); else openInventory(); } } else iDown=false; break;
             case 'Digit1': if(down&&inventoryOpen) setWeapon('pistol'); break;
             case 'Digit2': if(down&&inventoryOpen) setWeapon('mg'); break;
-            case 'Digit3': if(down&&inventoryOpen){ startBuild('wall'); closeInventory(); } break;
-            case 'Digit4': if(down&&inventoryOpen){ startBuild('pillbox'); closeInventory(); } break;
+            case 'Digit3': if(down){ key3Held=true; if(running){ if(inventoryOpen) closeInventory(); if(!building) startBuild('wall'); } } else key3Held=false; break;
+            case 'Digit4': if(down){ if(running){ if(inventoryOpen) closeInventory(); startBuild('pillbox'); } } break;
             default: return; } e.preventDefault(); }
         addEventListener('keydown', e=>key(e,true)); addEventListener('keyup', e=>key(e,false));
         addEventListener('blur', ()=>{ keys.f=keys.b=keys.l=keys.r=false; firing=false; gDown=false; spaceDown=false; cDown=false; jDown=false; });
