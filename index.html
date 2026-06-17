@@ -428,7 +428,7 @@
             const mesh=buildRocketMesh(); mesh.position.set(ox,oy,oz); const rk={x:ox,z:oz,y:oy,vx:d.x*ROCKET_SPEED,vz:d.z*ROCKET_SPEED,vy:d.y*ROCKET_SPEED+ROCKET_VY0,team:shooter.team,dist:0,spin:0,mesh:mesh}; rockets.push(rk); if(shooter===human) camRocket=rk; spawnEffect(ox,oy,oz,0xffd27a,12,30,0.18); return true; }
         function removeRocket(i){ scene.remove(rockets[i].mesh); rockets[i].mesh.children[2].material.dispose(); rockets.splice(i,1); }
         function explodeRocket(x,y,z,team){ spawnEffect(x,y,z,0xffb43c,16,ROCKET_BLAST*2.4,0.55); spawnEffect(x,y,z,0xffe7ad,8,ROCKET_BLAST*1.4,0.34); spawnEffect(x,y,z,0x6b4a2a,12,ROCKET_BLAST*1.9,0.85); spawnEffect(x,y,z,0x3a3a3a,9,ROCKET_BLAST*1.5,1.0);
-            deformTerrain(x,z,40,12);
+            deformTerrain(x,z,120,36);
             for(const p of players){ if(p.team===team||p.tag>0) continue; if((p.x-x)**2+(p.z-z)**2<ROCKET_BLAST**2) p.doTag(); }
             for(const o of OBSTACLES){ const dd=Math.hypot(o.x-x,o.z-z); if(dd<ROCKET_BLAST+o.r) damageObstacle(o,42*Math.max(0.3,1-dd/(ROCKET_BLAST+o.r))); } }
         const effects=[];
@@ -449,7 +449,7 @@
             const mk=new THREE.Mesh(new THREE.RingGeometry(BOMB_BLAST*0.55,BOMB_BLAST*0.68,30),new THREE.MeshBasicMaterial({color:0xff3b3b,transparent:true,opacity:0.7,depthWrite:false,side:THREE.DoubleSide})); mk.rotation.x=-Math.PI/2; mk.position.set(tgt.x,terrainH(tgt.x,tgt.z)+1,tgt.z); scene.add(mk);
             planes.push({mesh:plane,x:sx,y:alt,z:sz,dx:dx,dz:dz,tgt:tgt,marker:mk,dropped:false}); toast('✈️ Airstrike inbound!'); }
         function explodeBomb(x,z){ const y=terrainH(x,z); spawnEffect(x,y+10,z,0xff7a2a,20,BOMB_BLAST*2.2,0.7); spawnEffect(x,y+10,z,0xffd27a,12,BOMB_BLAST*1.5,0.5); spawnEffect(x,y+10,z,0x6b4a2a,16,BOMB_BLAST*1.4,0.95); spawnEffect(x,y+10,z,0x333333,14,BOMB_BLAST*1.2,1.2);
-            deformTerrain(x,z,70,22);
+            deformTerrain(x,z,210,66);
             for(const p of players){ if(!human||p.team===human.team||p.tag>0) continue; if((p.x-x)**2+(p.z-z)**2<BOMB_BLAST**2) p.doTag(); }
             for(const o of OBSTACLES){ const dd=Math.hypot(o.x-x,o.z-z); if(dd<BOMB_BLAST+o.r) damageObstacle(o,140*Math.max(0.3,1-dd/(BOMB_BLAST+o.r))); } }
         function updateAirstrikes(dt){
@@ -595,7 +595,7 @@
             for(let i=0;i<players.length;i++){ const a=players[i]; if(a.tag>0) continue; for(let j=i+1;j<players.length;j++){ const b=players[j]; if(b.tag>0) continue; const dx=a.x-b.x,dz=a.z-b.z,d=Math.hypot(dx,dz),min=PLAYER_R*2; if(d<min&&d>0.0001){ const p=(min-d)*0.5; a.x+=(dx/d)*p; a.z+=(dz/d)*p; b.x-=(dx/d)*p; b.z-=(dz/d)*p; } } }
             for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i],step=Math.hypot(b.vx,b.vz)*dt; b.x+=b.vx*dt; b.z+=b.vz*dt; b.y+=(b.vy||0)*dt; b.dist+=step; b.mesh.position.set(b.x,b.y,b.z);
                 let dead=false; const gy=terrainH(b.x,b.z);
-                if(b.y<gy){ dead=true; deformTerrain(b.x,b.z,22,0.5); spawnEffect(b.x,gy+1.5,b.z,0xcabfa0,3,18,0.3); spawnEffect(b.x,gy+1.5,b.z,0x8a7d5e,2,11,0.22); spawnEffect(b.x,gy+1,b.z,0x6b5a3a,2,7,0.2); }   // ground impact: dust + dig a bit
+                if(b.y<gy){ dead=true; deformTerrain(b.x,b.z,88,2.0); spawnEffect(b.x,gy+1.5,b.z,0xcabfa0,3,18,0.3); spawnEffect(b.x,gy+1.5,b.z,0x8a7d5e,2,11,0.22); spawnEffect(b.x,gy+1,b.z,0x6b5a3a,2,7,0.2); }   // ground impact: dust + dig a bit
                 else if(b.dist>BULLET_RANGE){ dead=true; }
                 if(!dead) for(const o of OBSTACLES){ if((b.x-o.x)**2+(b.z-o.z)**2<(o.r+BULLET_R)**2){ dead=true; spawnEffect(b.x,b.y,b.z,0xdddddd,4,15,0.22); damageObstacle(o,3); break; } }
                 if(!dead) for(const p of players){ if(p.team===b.team||p.tag>0) continue; if((b.x-p.x)**2+(b.z-p.z)**2<(PLAYER_R+BULLET_R)**2){ hit(p,BULLET_DMG); dead=true; break; } }
@@ -632,7 +632,7 @@
             g._blob.position.set(e.x,e.y+0.4,e.z); g._blob.visible=vis&&!(e===human&&viewMode==='fpv'); } }
         function updateCamera(){ if(!human) return;
             if(camRocket){ if(rockets.indexOf(camRocket)===-1){ camRocket=null; } else { const v=camRocket,vl=Math.hypot(v.vx,v.vy,v.vz)||1,fx=v.vx/vl,fy=v.vy/vl,fz=v.vz/vl;
-                const cx=v.x-fx*92,cz=v.z-fz*92; let cy=v.y-fy*92+32; const gc=terrainH(cx,cz)+5; if(cy<gc) cy=gc; camera.position.set(cx,cy,cz); camera.lookAt(v.x+fx*20,v.y+fy*20,v.z+fz*20); return; } }
+                const cx=v.x-fx*150,cz=v.z-fz*150; let cy=v.y-fy*150+55; const gc=terrainH(cx,cz)+5; if(cy<gc) cy=gc; camera.position.set(cx,cy,cz); camera.lookAt(v.x+fx*22,v.y+fy*22,v.z+fz*22); return; } }
             if(camHold>0&&camHoldTgt){ camera.position.set(camHoldCamX,camHoldCamY,camHoldCamZ); camera.lookAt(camHoldTgt.x,camHoldTgt.y,camHoldTgt.z); return; }
             const f={x:Math.sin(human.yaw),z:Math.cos(human.yaw)},cr=human.crouch?CROUCH_DROP:0;
             if(viewMode==='fpv'&&fpvBullet&&bullets.indexOf(fpvBullet)!==-1){ const eye=human.y+EYE_Y-cr,d=aimDir(human); camera.position.set(human.x+f.x*1.5,eye+1.5,human.z+f.z*1.5); camera.lookAt(human.x+d.x*60,eye+1.5+d.y*60,human.z+d.z*60); return; }
