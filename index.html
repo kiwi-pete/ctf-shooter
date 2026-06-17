@@ -397,6 +397,7 @@
         class Entity {
             constructor(team,isBot,role,name){ this.team=team; this.isBot=isBot; this.role=role; this.name=name; this.x=0; this.z=0; this.y=0; this.vx=0; this.vz=0; this.vy=0; this.airborne=false; this.crouch=false;
                 this.yaw=team==='blue'?0:Math.PI; this.pitch=0; this.speed=RUN_SPEED; this.cooldown=0.4+Math.random()*0.6; this.rocketCD=0; this.rocketWind=0; this.tag=0; this.carrying=null; this.spawn={x:0,z:0};
+                this.flank=(Math.random()<0.5?1:-1); this.phase=Math.random()*6.283; this.checkT=0.5; this.lastX=0; this.lastZ=0; this.escapeT=0;   // navigation/variety
                 this.hasMG=false; this.weapon='pistol'; this.mgAmmo=MG_MAX; this.mgFire=0; this.hp=MAX_HP; this.armour=0; this.airstrikes=AIRSTRIKES; this.mesh=buildCharacter(team); }
             placeAt(x,z){ this.x=x; this.z=z; this.y=terrainH(x,z); this.spawn={x:x,z:z}; }
             doTag(){ if(this.tag>0) return; this.tag=TAG_TIME; this.vx=this.vz=this.vy=0; this.airborne=false;
@@ -584,6 +585,10 @@
         function lineOfSight(x1,z1,x2,z2){ const dx=x2-x1,dz=z2-z1,dist=Math.hypot(dx,dz),steps=Math.ceil(dist/16); for(let i=1;i<steps;i++){ const t=i/steps,px=x1+dx*t,pz=z1+dz*t; for(const o of OBSTACLES){ if((px-o.x)**2+(pz-o.z)**2<(o.r+2)**2) return false; } } return true; }
         function collideObstacles(e){ for(const o of OBSTACLES){ const dx=e.x-o.x,dz=e.z-o.z,d=Math.hypot(dx,dz),min=o.r+PLAYER_R; if(d<min&&d>0.0001){ const push=min-d; e.x+=(dx/d)*push; e.z+=(dz/d)*push; } } }
         function avoid(e,mv){ for(const o of OBSTACLES){ const dx=e.x-o.x,dz=e.z-o.z,d=Math.hypot(dx,dz),reach=o.r+PLAYER_R+26; if(d<reach&&d>0.0001){ const fnc=(reach-d)/reach*2.6; mv.x+=(dx/d)*fnc; mv.z+=(dz/d)*fnc; } } }
+        // steer toward (gx,gz) but slide tangentially AROUND obstacles (go around walls instead of stalling)
+        function steerAround(e,gx,gz){ let mvx=gx,mvz=gz; for(const o of OBSTACLES){ const dx=e.x-o.x,dz=e.z-o.z,d=Math.hypot(dx,dz),reach=o.r+PLAYER_R+34;
+            if(d<reach&&d>0.0001){ const nx=dx/d,nz=dz/d,push=(reach-d)/reach; mvx+=nx*push*1.5; mvz+=nz*push*1.5;
+                let px=-nz,pz=nx,al=px*gx+pz*gz; if(al<0){px=-px;pz=-pz;al=-al;} if(al<0.15){px=-nz*e.flank;pz=nx*e.flank;} mvx+=px*push*2.4; mvz+=pz*push*2.4; } } return {x:mvx,z:mvz}; }
         function yawFromDir(dx,dz){ return Math.atan2(dx,dz); }
         function angleLerp(a,t,step){ let d=Math.atan2(Math.sin(t-a),Math.cos(t-a)); if(Math.abs(d)<=step) return t; return a+Math.sign(d)*step; }
         // difficulty: rises from 0 → 1 as the human closes on the Red flag (their objective)
@@ -602,7 +607,11 @@
             if(!actingRunner){ const ne=nearestEnemy(e); if(ne){ aimTarget=ne.target; const dx=ne.target.x-e.x,dz=ne.target.z-e.z,d=ne.dist||1;
                     if(d>220){ mv.x=dx/d; mv.z=dz/d; } else if(d<95){ mv.x=-dx/d; mv.z=-dz/d; } else { mv.x=-dz/d; mv.z=dx/d; if(((e.name.length+Math.floor(timeNow))%2)===0){ mv.x*=-1; mv.z*=-1; } } }
                 else { const goal=BASES[e.team==='red'?'blue':'red']; const dx=goal.x-e.x,dz=goal.z-e.z,d=Math.hypot(dx,dz)||1; mv.x=dx/d; mv.z=dz/d; } }
-            avoid(e,mv); const len=Math.hypot(mv.x,mv.z); if(len>0.0001){ e.vx=(mv.x/len)*e.speed; e.vz=(mv.z/len)*e.speed; } else { e.vx=e.vz=0; }
+            e.checkT-=dt; if(e.checkT<=0){ const moved=Math.hypot(e.x-e.lastX,e.z-e.lastZ); if(moved<6&&(mv.x*mv.x+mv.z*mv.z)>0.01) e.escapeT=0.8; e.lastX=e.x; e.lastZ=e.z; e.checkT=0.5; }   // stuck? break free
+            let dirx,dirz;
+            if(e.escapeT>0){ e.escapeT-=dt; const a=e.yaw+e.flank*1.4; dirx=Math.sin(a); dirz=Math.cos(a); }
+            else { const gl=Math.hypot(mv.x,mv.z)||1,gx=mv.x/gl,gz=mv.z/gl,wob=Math.sin(timeNow*0.8+e.phase)*0.3; const st=steerAround(e,gx+(-gz)*wob,gz+gx*wob); dirx=st.x; dirz=st.z; }
+            const len=Math.hypot(dirx,dirz); if(len>0.0001){ e.vx=(dirx/len)*e.speed; e.vz=(dirz/len)*e.speed; } else { e.vx=e.vz=0; }
             let fy; if(aimTarget) fy=yawFromDir(aimTarget.x-e.x,aimTarget.z-e.z); else if(len>0.0001) fy=yawFromDir(e.vx,e.vz); else fy=e.yaw; e.yaw=angleLerp(e.yaw,fy,turnRate*dt);
             if(aimTarget&&e.cooldown<=0){ const want=yawFromDir(aimTarget.x-e.x,aimTarget.z-e.z),diff=Math.abs(Math.atan2(Math.sin(e.yaw-want),Math.cos(e.yaw-want))),dist=Math.hypot(aimTarget.x-e.x,aimTarget.z-e.z);
                 if(diff<aimTol&&lineOfSight(e.x,e.z,aimTarget.x,aimTarget.z)){
@@ -622,7 +631,7 @@
 
         // ===================== TICK =====================
         let timeNow=0, dtNow=0;
-        function update(dt){ timeNow+=dt; dtNow=dt; if(camGlide){ camGlide.t+=dt; if(camGlide.t>=camGlide.dur) camGlide=null; } manageDefenders();
+        function update(dt){ timeNow+=dt; dtNow=dt; if(camGlide){ camGlide.t+=dt; const f=Math.exp(-dt*1.8); camGlide.x+=camGlide.vx*dt; camGlide.z+=camGlide.vz*dt; camGlide.vx*=f; camGlide.vz*=f; if(camGlide.t>=camGlide.dur) camGlide=null; } manageDefenders();
             for(const e of players){ if(e.cooldown>0) e.cooldown-=dt; if(e.rocketCD>0) e.rocketCD-=dt; if(e.mgFire>0) e.mgFire-=dt;
                 if(e.weapon==='mg'&&e.mgAmmo<MG_MAX) e.mgAmmo=Math.min(MG_MAX,e.mgAmmo+MG_REGEN*dt);
                 if(e.rocketWind>0&&e.tag<=0){ e.rocketWind-=dt; if(e.rocketWind<=0) fireRocket(e); else spawnEffect(e.x+Math.sin(e.yaw)*11,e.y+19,e.z+Math.cos(e.yaw)*11,0xffd27a,9,15,0.1); }
@@ -651,7 +660,7 @@
                 let boom=r.dist>=ROCKET_MAXDIST||r.y<terrainH(r.x,r.z);
                 if(!boom) for(const o of OBSTACLES){ if((r.x-o.x)**2+(r.z-o.z)**2<(o.r+ROCKET_R)**2){ boom=true; break; } }
                 if(!boom) for(const p of players){ if(p.team===r.team||p.tag>0) continue; if((r.x-p.x)**2+(r.z-p.z)**2<(PLAYER_R+ROCKET_R)**2){ boom=true; break; } }
-                if(boom){ if(r===camRocket){ const hv=Math.hypot(r.vx,r.vz)||1,hx=r.vx/hv,hz=r.vz/hv,iy=terrainH(r.x,r.z); camGlide={fx:camera.position.x,fy:camera.position.y,fz:camera.position.z,tx:r.x-hx*42,ty:iy+55,tz:r.z-hz*42,ix:r.x,iy:iy+6,iz:r.z,t:0,dur:1.6}; camRocket=null; } explodeRocket(r.x,r.y,r.z,r.team); removeRocket(i); } }
+                if(boom){ if(r===camRocket){ const iy=terrainH(r.x,r.z); camGlide={x:camera.position.x,y:camera.position.y,z:camera.position.z,vx:r.vx*0.85,vz:r.vz*0.85,ix:r.x,iy:iy+6,iz:r.z,t:0,dur:1.5}; camRocket=null; } explodeRocket(r.x,r.y,r.z,r.team); removeRocket(i); } }
             updateAirstrikes(dt); updateBuild(dt); updateTurrets(dt);
             if(viewMode==='fpv'){ fpvTimer-=dt; if(fpvTimer<=0||!fpvBullet||bullets.indexOf(fpvBullet)===-1){ viewMode='third'; fpvBullet=null; } }
             for(const pk of pickups){ if(pk.taken) continue; pk.grp.rotation.y+=dt*1.1; pk.grp.position.y=pk.y+11+Math.sin(timeNow*2)*2;
@@ -676,7 +685,7 @@
         function updateCamera(){ if(!human) return;
             if(camRocket){ if(rockets.indexOf(camRocket)===-1){ camRocket=null; } else { const v=camRocket,hv=Math.hypot(v.vx,v.vz)||1,fx=v.vx/hv,fz=v.vz/hv, td=Math.max(140,Math.min(650,90+v.dist*0.6));   // pull back more the further it flies
                 const cx=v.x-fx*td,cz=v.z-fz*td; let cy=Math.max(v.y,terrainH(cx,cz))+70+Math.min(120,v.dist*0.08); camera.position.set(cx,cy,cz); camera.lookAt(v.x,v.y,v.z); return; } }
-            if(camGlide){ const k=camGlide.t/camGlide.dur, e=1-Math.pow(1-k,3); camera.position.set(camGlide.fx+(camGlide.tx-camGlide.fx)*e, camGlide.fy+(camGlide.ty-camGlide.fy)*e, camGlide.fz+(camGlide.tz-camGlide.fz)*e); camera.lookAt(camGlide.ix,camGlide.iy,camGlide.iz); return; }   // glide in toward the impact
+            if(camGlide){ camera.position.set(camGlide.x,camGlide.y,camGlide.z); camera.lookAt(camGlide.ix,camGlide.iy,camGlide.iz); return; }   // keep coasting & watching the impact, then end
             const f={x:Math.sin(human.yaw),z:Math.cos(human.yaw)},cr=human.crouch?CROUCH_DROP:0;
             if(viewMode==='fpv'&&fpvBullet&&bullets.indexOf(fpvBullet)!==-1){ const eye=human.y+EYE_Y-cr,d=aimDir(human); camera.position.set(human.x+f.x*1.5,eye+1.5,human.z+f.z*1.5); camera.lookAt(human.x+d.x*60,eye+1.5+d.y*60,human.z+d.z*60); return; }
             const camX=human.x-f.x*CAM_DIST,camZ=human.z-f.z*CAM_DIST; let camY=human.y+CAM_HEIGHT-cr-human.pitch*26; const gc=terrainH(camX,camZ)+7; if(camY<gc) camY=gc;
