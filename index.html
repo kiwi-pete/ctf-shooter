@@ -297,7 +297,7 @@
         function makeLabel(text){ const c=document.createElement('canvas'); c.width=256; c.height=64; const g=c.getContext('2d');
             g.fillStyle='rgba(15,23,42,0.72)'; rr(g,6,12,244,40,12); g.fill(); g.lineWidth=2; g.strokeStyle='rgba(255,255,255,0.25)'; rr(g,6,12,244,40,12); g.stroke();
             g.font='700 30px Outfit,sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillStyle='#fdfdfd'; g.fillText(text,128,33);
-            const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,depthTest:false})); s.scale.set(116,29,1); return s; }
+            const s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthWrite:false,depthTest:true})); s.scale.set(116,29,1); return s; }
         function rr(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); }
 
         // ===================== WORLD OBJECTS =====================
@@ -380,9 +380,9 @@
             const exhaust=new THREE.Mesh(G.launchWar,M.rktBody); exhaust.rotation.x=-Math.PI/2; exhaust.position.z=-14; exhaust.scale.set(0.75,0.75,0.75); launcher.add(exhaust);
             const grip=new THREE.Mesh(G.launchGrip,M.dark); grip.position.set(0,-3.4,-2); launcher.add(grip);
             const sight=new THREE.Mesh(G.launchSight,M.dark); sight.position.set(0,3.4,2); launcher.add(sight); grp.add(launcher);
-            const hpBg=new THREE.Sprite(new THREE.SpriteMaterial({map:WHITE_TEX,color:0x0e1422,transparent:true,depthTest:false})); hpBg.scale.set(25,3.4,1); hpBg.position.y=40; grp.add(hpBg);
-            const hpFill=new THREE.Sprite(new THREE.SpriteMaterial({map:WHITE_TEX,color:0x46d65f,depthTest:false})); hpFill.scale.set(23,2.2,1); hpFill.position.set(0,40,0); grp.add(hpFill);
-            const arFill=new THREE.Sprite(new THREE.SpriteMaterial({map:WHITE_TEX,color:0x5bb8ff,depthTest:false})); arFill.scale.set(0.001,1.3,1); arFill.position.set(0,42.7,0); grp.add(arFill);
+            const hpBg=new THREE.Sprite(new THREE.SpriteMaterial({map:WHITE_TEX,color:0x0e1422,transparent:true,depthTest:true})); hpBg.scale.set(25,3.4,1); hpBg.position.y=40; grp.add(hpBg);
+            const hpFill=new THREE.Sprite(new THREE.SpriteMaterial({map:WHITE_TEX,color:0x46d65f,depthTest:true})); hpFill.scale.set(23,2.2,1); hpFill.position.set(0,40,0); grp.add(hpFill);
+            const arFill=new THREE.Sprite(new THREE.SpriteMaterial({map:WHITE_TEX,color:0x5bb8ff,depthTest:true})); arFill.scale.set(0.001,1.3,1); arFill.position.set(0,42.7,0); grp.add(arFill);
             scene.add(grp); const blob=new THREE.Mesh(G.blob,M.blob); blob.rotation.x=-Math.PI/2; scene.add(blob);
             grp._legs=[legL,legR]; grp._blob=blob; grp._gun=gun; grp._mg=mgun; grp._hpBg=hpBg; grp._hpFill=hpFill; grp._arFill=arFill; grp._viewmodel=[armL,armR,gun,mgun]; grp._body=[hips,torso,vest,patch,pack,neck,head,face,helmet,hband,legL,legR,launcher];
             return grp;
@@ -425,7 +425,10 @@
             const tail=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xffc14d,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); tail.scale.set(24,24,1); tail.position.z=-9; g.add(tail); scene.add(g); return g; }
         function fireRocket(shooter){ if(shooter.rocketCD>0) return false; shooter.rocketCD=ROCKET_CD;   // unlimited ammo, 10s cooldown
             const d=shotDir(shooter); const ox=shooter.x+d.x*(PLAYER_R+10),oz=shooter.z+d.z*(PLAYER_R+10),oy=shooter.y+GUN_Y+8-(shooter.crouch?CROUCH_DROP:0); // from the shoulder
-            const mesh=buildRocketMesh(); mesh.position.set(ox,oy,oz); const rk={x:ox,z:oz,y:oy,vx:d.x*ROCKET_SPEED,vz:d.z*ROCKET_SPEED,vy:d.y*ROCKET_SPEED+ROCKET_VY0,team:shooter.team,dist:0,spin:0,mesh:mesh}; rockets.push(rk); if(shooter===human) camRocket=rk; spawnEffect(ox,oy,oz,0xffd27a,12,30,0.18); return true; }
+            let vx=d.x*ROCKET_SPEED, vz=d.z*ROCKET_SPEED, vy=d.y*ROCKET_SPEED+ROCKET_VY0;
+            if(shooter===human){ const T=crosshairPoint(), dxh=T.x-ox, dzh=T.z-oz, dh=Math.hypot(dxh,dzh), dy=T.y-oy;   // ballistic arc that lands on the crosshair point
+                if(dh>40&&dh<1600){ const t=dh/ROCKET_SPEED; vx=(dxh/dh)*ROCKET_SPEED; vz=(dzh/dh)*ROCKET_SPEED; vy=(dy+0.5*ROCKET_GRAV*t*t)/t; } }
+            const mesh=buildRocketMesh(); mesh.position.set(ox,oy,oz); const rk={x:ox,z:oz,y:oy,vx:vx,vz:vz,vy:vy,team:shooter.team,dist:0,spin:0,mesh:mesh}; rockets.push(rk); if(shooter===human) camRocket=rk; spawnEffect(ox,oy,oz,0xffd27a,12,30,0.18); return true; }
         function removeRocket(i){ scene.remove(rockets[i].mesh); rockets[i].mesh.children[2].material.dispose(); rockets.splice(i,1); }
         function explodeRocket(x,y,z,team){ spawnEffect(x,y,z,0xffb43c,16,ROCKET_BLAST*2.4,0.55); spawnEffect(x,y,z,0xffe7ad,8,ROCKET_BLAST*1.4,0.34); spawnEffect(x,y,z,0x6b4a2a,12,ROCKET_BLAST*1.9,0.85); spawnEffect(x,y,z,0x3a3a3a,9,ROCKET_BLAST*1.5,1.0);
             deformTerrain(x,z,120,36);
