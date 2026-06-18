@@ -40,10 +40,12 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
   Fumba + Kizimkazi SW fingers), with **hills & high ground**, **sandy beaches**, and
   rocky steeps. Everyone + the camera follow the terrain. The coastline is a wall.
 - The **sea is animated** (swell + whitecaps) with **breaking-surf rings** at beaches.
-- **Scale & pace:** ~6000 units N–S; walk speed **83.5 u/s** (~72 s tip-to-tip) — half
-  that while carrying the machine gun.
-- **13 villages** with billboarded labels. **Jozani is a forest you walk through**
-  (individual tree collision); villages and rocks are cover.
+- **Scale & pace:** ~**18000 units N–S** (a big, explorable island); walk speed **83.5 u/s**
+  — half that while carrying the machine gun; the army car (2×) is the fast way to cross it.
+- **Trees and buildings are 4× scale** (towering trees, multi-storey houses).
+- **13 villages** are real **walkable towns**: each is a grid of **12+ houses** (Stone Town
+  20+) with **streets you walk/drive down** and per-building collision. Billboarded labels.
+  **Jozani is a forest you walk through** (individual tree collision); rocks are cover too.
 
 ## Weapons & combat
 - **Soldier** model: olive uniform, vest, helmet with team-coloured band, backpack,
