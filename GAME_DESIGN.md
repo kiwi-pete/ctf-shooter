@@ -61,8 +61,9 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
 - **Pistol bullets** — fast (≈1200 u/s, dodgeable at range), shooting snaps to the
   first-person bullet-cam.
 - **Rocket launcher (G / 🚀)** — **unlimited ammo, one shot every 10 s**. Fired from
-  the shoulder; the rocket **arcs under gravity** (a lob) and **detonates with an area
-  blast** that tags every enemy nearby. HUD shows the reload countdown.
+  the shoulder; the rocket now **flies dead straight** (no arc) and reaches **3× as far**,
+  **detonating with an area blast** that tags every enemy nearby. HUD shows the reload
+  countdown. (Only the **tank cannon** still lobs an arcing shell.)
 - **Machine gun** — **pick one up** in the field (belt-fed model, ammo belt out the
   side). Press **M / WPN** to switch between it and the pistol. While carrying it your
   **move and turn speed are halved**. It fires a **regenerating 20-round burst**: empty
@@ -86,7 +87,8 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
   camera **follows that shell from further back and slower** than your own rocket, then
   glides back to the tank view ~0.5 s after impact. Engine **overheats after 20 s** (~18 s
   to cool). It **rides over the hills** and **launches off steep crests**.
-- **Hill MG nests (E to man/dismount):** each of the 3 hill summits has a **tripod-mounted machine gun** (labelled 🔫 MG NEST). Climb to a summit, press **E** to take it over — you're pinned to the gun, aim with the mouse, and **FIRE rips out rapid, unlimited rounds** (~20/s). Press **E** to get off.
+- **Hill rocket nests (E to man/dismount):** each of the 3 hill summits has a **tripod-mounted automatic rocket launcher** (labelled 🚀 ROCKET NEST). Climb to a summit, press **E** to take it over — you're pinned to the launcher, aim with the mouse, and **FIRE pumps out one dead-straight rocket every second at 5× normal range**. Press **E** to get off.
+- **Enemy look:** the enemy team is unmistakable — **black kit with red armbands** (helmet band, chest patch and arm bands all red), versus your camo. Works whichever side you pick.
 - **Enemy force ×10:** the defending team now fields **30 soldiers** from the start and reinforces up to **70** as you near their flag — a real horde to fight through.
 - **Drone (collect 3 in the field; switch to it in Inventory I, key 5):** a single-use
   quadcopter you pilot — **WASD fly, look up/down to climb/dive, Shift up / C down**, camera
