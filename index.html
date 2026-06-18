@@ -179,8 +179,8 @@
     <div class="overlay hidden" id="overlay-win"><h2 id="win-title">Blue team wins!</h2><p id="win-sub">3 flags captured.</p><button id="btn-restart">Play again</button></div>
     <div id="inventory" class="hidden">
         <h3>INVENTORY <span>· time slowed ×4</span></h3>
-        <div class="invrow"><div class="inv-tile sel" id="inv-pistol">1 · Pistol</div><div class="inv-tile locked" id="inv-mg">2 · Machine&nbsp;Gun</div><div class="inv-tile" id="inv-wall">3 · 🧱 Wall<br><small>5s</small></div><div class="inv-tile" id="inv-pillbox">4 · 📦 Pillbox<br><small>10s · auto-gun</small></div></div>
-        <div class="invhint">press 1 / 2 weapons · 3 / 4 build (or tap) · I or Esc to close</div>
+        <div class="invrow"><div class="inv-tile sel" id="inv-pistol">1 · Pistol</div><div class="inv-tile locked" id="inv-mg">2 · Machine&nbsp;Gun</div><div class="inv-tile" id="inv-wall">3 · 🧱 Wall<br><small>5s</small></div><div class="inv-tile" id="inv-pillbox">4 · 📦 Pillbox<br><small>10s · auto-gun</small></div><div class="inv-tile locked" id="inv-drone">5 · 🚁 Drone<br><small>fly · 20s</small></div></div>
+        <div class="invhint">press 1 / 2 weapons · 3 / 4 build · 5 fly drone (or tap) · I or Esc to close</div>
     </div>
     <div id="fatal"></div>
 
@@ -203,6 +203,7 @@
         // Army car: drives at 2× walk, turret holds 40 rounds & regenerates like the MG, overheats after 20s of driving (~18s to cool)
         const CAR_SPEED = RUN_SPEED*2, CAR_ACCEL = 200, CAR_RELOAD = 3;   // car cannon: lobs a rocket-equivalent every 3s
         const CAR_HEAT_MAX = 20, CAR_COOL = 18, CAR_ENTER_DIST = 32, CAR_GRAV = 215;
+        const DRONE_BATTERY = 20, DRONE_SPEED = 180, DRONE_VERT = 130, DRONE_BLAST = 90;   // collectible single-use drone: 20s battery, then it falls & explodes
         const ROCKET_WIND = 0.45;                 // enemy launcher telegraph (muzzle flash) before launch
         const THREAT_RANGE = 4500, MAX_RED = 7;   // difficulty rises as you near the Red flag
         const MAX_HP = 100, BULLET_DMG = 34, ARMOUR_MAX = 100, INV_TIMESCALE = 0.25, AIRSTRIKES = 3, BOMB_BLAST = 120;
@@ -536,8 +537,13 @@
             grp.add(new THREE.Mesh(G.armourV,M.armour)); const sh1=new THREE.Mesh(G.patch,M.armour); sh1.position.set(-6,4,0); grp.add(sh1); const sh2=new THREE.Mesh(G.patch,M.armour); sh2.position.set(6,4,0); grp.add(sh2);
             const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0x8fd0ff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); glow.scale.set(46,46,1); grp.add(glow);
             const lab=makeLabel('ARMOUR'); lab.position.set(0,24,0); grp.add(lab); scene.add(grp); pickups.push({grp:grp,x:p.x,z:p.z,y:y,taken:false,type:'armour'}); }
+        function buildDronePickup(nx,nz){ const p=settleInside(toWorld(nx,nz),PLAYER_R+4),y=terrainH(p.x,p.z); const grp=new THREE.Group(); grp.position.set(p.x,y+11,p.z);
+            grp.add(new THREE.Mesh(new THREE.BoxGeometry(9,3,9),M.dark)); for(const [rx,rz] of [[6,6],[6,-6],[-6,6],[-6,-6]]){ const r=new THREE.Mesh(new THREE.CylinderGeometry(3.4,3.4,0.4,12),M.bulletDark); r.position.set(rx,2,rz); grp.add(r); }
+            const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0x8effc0,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); glow.scale.set(46,46,1); grp.add(glow);
+            const lab=makeLabel('DRONE'); lab.position.set(0,24,0); grp.add(lab); scene.add(grp); pickups.push({grp:grp,x:p.x,z:p.z,y:y,taken:false,type:'drone'}); }
         [[0.46,0.80],[0.50,0.50],[0.52,0.28]].forEach(s=>buildMGPickup(s[0],s[1]));
         [[0.52,0.66],[0.46,0.40],[0.50,0.20]].forEach(s=>buildArmourPickup(s[0],s[1]));
+        [[0.40,0.72],[0.56,0.44],[0.48,0.16]].forEach(s=>buildDronePickup(s[0],s[1]));
 
         // ---- collectible gems (human only): walk over to bank one; it respawns elsewhere so there's always one to chase ----
         const gems3d=[];
@@ -715,6 +721,39 @@
             if(c.fireT>0) c.fireT-=dt;
             if(firing&&c.fireT<=0){ fireRocket(human,true,true,2.5,true); c.fireT=CAR_RELOAD; } }   // tank shell: 2.5x range, slow far-follow cam
 
+        // ===================== DRONE (collectible, single-use, player-flown) =====================
+        function buildDroneMesh(){ const g=new THREE.Group();
+            g.add(new THREE.Mesh(new THREE.BoxGeometry(13,4,13),M.dark));
+            const cam=new THREE.Mesh(new THREE.SphereGeometry(2.4,10,8),M.gun); cam.position.set(0,-2.6,5.2); g.add(cam);
+            const rotors=[]; for(const [rx,rz] of [[9,9],[9,-9],[-9,9],[-9,-9]]){
+                const arm=new THREE.Mesh(new THREE.BoxGeometry(2,1.2,2),M.gun); arm.position.set(rx*0.6,0.6,rz*0.6); g.add(arm);
+                const motor=new THREE.Mesh(new THREE.CylinderGeometry(1.4,1.4,2.4,8),M.dark); motor.position.set(rx,1.4,rz); g.add(motor);
+                const r=new THREE.Mesh(new THREE.CylinderGeometry(5.2,5.2,0.4,16),M.bulletDark); r.position.set(rx,3,rz); g.add(r); rotors.push(r); }
+            g._rotors=rotors; g.visible=false; g.castShadow=false; scene.add(g); return g; }
+        const drone={active:false,dead:false,x:0,y:0,z:0,vx:0,vy:0,vz:0,yaw:0,battery:0,mesh:buildDroneMesh()};
+        function launchDrone(){ if(!human||!running||human.inCar||human.inDrone){ return; } if((human.drones||0)<=0){ toast('No drones — collect one in the field first'); return; }
+            human.drones--; human.inDrone=true; closeInventory(); firing=false;   // clear the launch click so it doesn't instantly detonate
+            drone.active=true; drone.dead=false; drone.battery=DRONE_BATTERY; drone.yaw=human.yaw;
+            drone.x=human.x; drone.z=human.z; drone.y=terrainH(human.x,human.z)+46; drone.vx=drone.vz=drone.vy=0; drone.mesh.visible=true;
+            toast('🚁 Drone — WASD fly (look up/down to climb/dive) · Shift up / C down · FIRE = detonate · 20s battery'); }
+        function detonateDrone(){ if(!drone.active) return; explodeRocket(drone.x,drone.y,drone.z,human.team,human);
+            drone.active=false; drone.mesh.visible=false; human.inDrone=false; human.vx=human.vz=human.vy=0; human.airborne=false; }
+        function updateDrone(dt){ const D=drone; if(human.tag>0){ detonateDrone(); return; }
+            if(firing){ detonateDrone(); return; }   // FIRE = kamikaze / detonate now
+            D.battery-=dt; if(D.battery<=0){ if(!D.dead){ D.dead=true; toast('🔋 Battery dead — drone going down!'); } }
+            if(!D.dead){ D.yaw=human.yaw; const cp=Math.cos(human.pitch),sp=Math.sin(human.pitch);
+                const fx=Math.sin(D.yaw)*cp, fyv=sp, fz=Math.cos(D.yaw)*cp, rx=-Math.cos(D.yaw), rz=Math.sin(D.yaw);
+                const inF=((keys.f?1:0)-(keys.b?1:0))-touchMove.y, inR=((keys.r?1:0)-(keys.l?1:0))+touchMove.x, inUp=((keys.up?1:0)-(keys.down?1:0));
+                const tvx=fx*inF*DRONE_SPEED+rx*inR*DRONE_SPEED, tvz=fz*inF*DRONE_SPEED+rz*inR*DRONE_SPEED, tvy=fyv*inF*DRONE_SPEED+inUp*DRONE_VERT;
+                const k=Math.min(1,dt*4); D.vx+=(tvx-D.vx)*k; D.vy+=(tvy-D.vy)*k; D.vz+=(tvz-D.vz)*k;
+            } else { D.vy-=GRAVITY*dt; D.vx*=0.99; D.vz*=0.99; }
+            D.x+=D.vx*dt; D.y+=D.vy*dt; D.z+=D.vz*dt; clampToIsland(D,4);
+            const gy=terrainH(D.x,D.z); const ceil=gy+650; if(D.y>ceil){ D.y=ceil; if(D.vy>0) D.vy=0; }
+            if(D.y<=gy+2){ detonateDrone(); return; }                                                   // hit the ground (kamikaze or dead)
+            for(const o of OBSTACLES){ const ot=(o.y!=null?o.y:gy); if((D.x-o.x)**2+(D.z-o.z)**2<(o.r+4)**2 && D.y<ot+70){ detonateDrone(); return; } }   // flew into a tree/building
+            for(const p of players){ if(p.team===human.team||p.tag>0) continue; if((D.x-p.x)**2+(D.z-p.z)**2<(PLAYER_R+5)**2 && Math.abs(D.y-(p.y+BODY_OFF))<28){ detonateDrone(); return; } }   // kamikaze into an enemy
+            human.vx=human.vz=0; }   // the pilot stays put on the ground
+
         // ===================== BULLETS / ROCKETS / EFFECTS =====================
         const bullets=[];
         function aimDir(e){ const cp=Math.cos(e.pitch),sp=Math.sin(e.pitch); return {x:Math.sin(e.yaw)*cp,y:sp,z:Math.cos(e.yaw)*cp}; }   // 3D aim incl. up/down pitch
@@ -808,7 +847,7 @@
             if(best){ const yaw=Math.atan2(best.x-t.x,best.z-t.z); if(t.gun) t.gun.rotation.y=yaw-(t.grpYaw||0); if(t.cd<=0){ fireBullet({team:'blue',x:t.x,z:t.z,y:t.y+24,yaw:yaw,pitch:0,crouch:false}); t.cd=TURRET_CD; } } } }
 
         // ===================== INPUT =====================
-        const keys={f:false,b:false,l:false,r:false}; let firing=false, gDown=false, spaceDown=false, cDown=false, jDown=false, mDown=false, iDown=false, bDown=false, eDown=false, key3Held=false;
+        const keys={f:false,b:false,l:false,r:false,up:false,down:false}; let firing=false, gDown=false, spaceDown=false, cDown=false, jDown=false, mDown=false, iDown=false, bDown=false, eDown=false, key3Held=false;
         let running=false, gameOver=false, viewMode='third', fpvBullet=null, fpvTimer=0, inventoryOpen=false;
         let playerTeam='blue', enemyTeam='red';   // 'blue' = north (top), 'red' (shown as GREEN) = south (bottom) — chosen on the start screen
         let gems=0, nearArmoury=false; const SHOP={ helmet:false, boots:false, rapid:false };   // per-match wallet + purchases (human only)
@@ -819,7 +858,8 @@
         function jump(){ if(human&&human.tag<=0&&!human.airborne){ human.vy=JUMP_V; human.airborne=true; } }
         function playerShoot(){ if(human&&human.tag<=0&&human.cooldown<=0){ fireBullet(human); human.cooldown=SHOP.rapid?RAPID_PISTOL_CD:0.4; } }   // Rapid Fire upgrade shortens the cooldown
         function setWeapon(w){ if(!human) return; if(w==='mg'&&!human.hasMG) return; human.weapon=w; closeInventory(); }
-        function refreshInv(){ if(!human) return; const ip=document.getElementById('inv-pistol'),im=document.getElementById('inv-mg'); ip.classList.toggle('sel',human.weapon==='pistol'); im.classList.toggle('sel',human.weapon==='mg'); im.classList.toggle('locked',!human.hasMG); }
+        function refreshInv(){ if(!human) return; const ip=document.getElementById('inv-pistol'),im=document.getElementById('inv-mg'); ip.classList.toggle('sel',human.weapon==='pistol'); im.classList.toggle('sel',human.weapon==='mg'); im.classList.toggle('locked',!human.hasMG);
+            const id=document.getElementById('inv-drone'); if(id){ const n=human.drones||0; id.classList.toggle('locked',n<=0); id.innerHTML='5 · 🚁 Drone'+(n>0?' ×'+n:'')+'<br><small>fly · 20s</small>'; } }
         function openInventory(){ if(!running||!human) return; inventoryOpen=true; document.getElementById('inventory').classList.remove('hidden'); refreshInv(); }
         function closeInventory(){ inventoryOpen=false; document.getElementById('inventory').classList.add('hidden'); }
 
@@ -871,8 +911,8 @@
             case 'KeyA': case 'ArrowLeft': keys.l=down; break; case 'KeyD': case 'ArrowRight': keys.r=down; break;
             case 'Space': if(down){ if(running&&!spaceDown){ spaceDown=true; playerShoot(); } } else spaceDown=false; break;
             case 'KeyR': if(down){ if(running&&human&&human.tag<=0&&!gDown){ gDown=true; fireRocket(human); } } else gDown=false; break;
-            case 'KeyC': if(down){ if(running&&human&&!cDown){ cDown=true; human.crouch=!human.crouch; } } else cDown=false; break;
-            case 'ShiftLeft': case 'ShiftRight': if(down){ if(running&&!jDown){ jDown=true; jump(); } } else jDown=false; break;
+            case 'KeyC': keys.down=down; if(down){ if(running&&human&&!human.inDrone&&!cDown){ cDown=true; human.crouch=!human.crouch; } } else cDown=false; break;
+            case 'ShiftLeft': case 'ShiftRight': keys.up=down; if(down){ if(running&&human&&!human.inDrone&&!jDown){ jDown=true; jump(); } } else jDown=false; break;
             case 'KeyM': if(down){ if(running&&human&&human.hasMG&&!mDown){ mDown=true; human.weapon=(human.weapon==='mg'?'pistol':'mg'); } } else mDown=false; break;
             case 'KeyE': if(down){ if(!eDown){ eDown=true; toggleCar(); } } else eDown=false; break;
             case 'KeyB': if(down){ if(running&&!bDown){ bDown=true; callAirstrike(); } } else bDown=false; break;
@@ -881,6 +921,7 @@
             case 'Digit2': if(down&&inventoryOpen) setWeapon('mg'); break;
             case 'Digit3': if(down){ key3Held=true; if(running){ if(inventoryOpen) closeInventory(); if(!building) startBuild('wall'); } } else key3Held=false; break;
             case 'Digit4': if(down){ if(running){ if(inventoryOpen) closeInventory(); startBuild('pillbox'); } } break;
+            case 'Digit5': if(down&&inventoryOpen) launchDrone(); break;
             case 'Digit7': case 'Numpad7': if(down) buyItem('helmet'); break;
             case 'Digit8': case 'Numpad8': if(down) buyItem('boots'); break;
             case 'Digit9': case 'Numpad9': if(down) buyItem('rapid'); break;
@@ -894,6 +935,7 @@
         document.getElementById('inv-mg').addEventListener('click', ()=>setWeapon('mg'));
         document.getElementById('inv-wall').addEventListener('click', ()=>{ startBuild('wall'); closeInventory(); });
         document.getElementById('inv-pillbox').addEventListener('click', ()=>{ startBuild('pillbox'); closeInventory(); });
+        document.getElementById('inv-drone').addEventListener('click', ()=>{ launchDrone(); });
         addEventListener('resize', ()=>{ camera.aspect=innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
 
         // ---- touch controls (pointer events; multi-touch via pointerId) ----
@@ -996,13 +1038,14 @@
                 if(e.rocketWind>0&&e.tag<=0){ e.rocketWind-=dt; if(e.rocketWind<=0) fireRocket(e); else spawnEffect(e.x+Math.sin(e.yaw)*11,e.y+19,e.z+Math.cos(e.yaw)*11,0xffd27a,9,15,0.1); }
                 if(e.tag>0){ e.tag-=dt; if(e.tag<=0){ e.x=e.spawn.x; e.z=e.spawn.z; e.y=terrainH(e.x,e.z); e.vx=e.vz=e.vy=0; e.airborne=false; e.hp=MAX_HP; spawnEffect(e.x,e.y+BODY_OFF,e.z,0xfff1a8,4,26,0.4); } } }
             if(human&&human.inCar){ updateCar(dt); }
+            else if(human&&human.inDrone){ updateDrone(dt); }
             else if(human&&human.tag<=0){ const sy=Math.sin(human.yaw),cy=Math.cos(human.yaw);
                 let inF=((keys.f?1:0)-(keys.b?1:0))-touchMove.y, inR=((keys.r?1:0)-(keys.l?1:0))+touchMove.x;
                 let mx=sy*inF+(-cy)*inR, mz=cy*inF+sy*inR; const l=Math.hypot(mx,mz),spd=human.speed*(human.crouch?CROUCH_SPEED:1)*(human.weapon==='mg'?MG_SPEED_MULT:1);
                 if(l>0.0001){ human.vx=(mx/l)*spd; human.vz=(mz/l)*spd; } else { human.vx=human.vz=0; }
                 if(firing){ if(human.weapon==='mg'){ if(human.mgAmmo>=1&&human.mgFire<=0){ fireBullet(human); human.mgAmmo--; human.mgFire=MG_FIRE_DT*(SHOP.rapid?RAPID_MG_MULT:1); } } else playerShoot(); } }
             for(const e of players){ if(e.isBot&&e.tag<=0) updateBot(e,dt); }
-            for(const e of players){ if(e.tag>0) continue; if(e===human&&human.inCar) continue; e.x+=e.vx*dt; e.z+=e.vz*dt; clampToIsland(e,PLAYER_R+1); collideObstacles(e); clampToIsland(e,PLAYER_R+1); if(!(e===human&&human.airborne)) e.y=terrainH(e.x,e.z); }
+            for(const e of players){ if(e.tag>0) continue; if(e===human&&(human.inCar||human.inDrone)) continue; e.x+=e.vx*dt; e.z+=e.vz*dt; clampToIsland(e,PLAYER_R+1); collideObstacles(e); clampToIsland(e,PLAYER_R+1); if(!(e===human&&human.airborne)) e.y=terrainH(e.x,e.z); }
             if(human&&human.tag<=0&&human.airborne&&!human.inCar){ human.vy-=GRAVITY*dt; human.y+=human.vy*dt; const gy=terrainH(human.x,human.z); if(human.y<=gy){ human.y=gy; human.vy=0; human.airborne=false; } }
             for(let i=0;i<players.length;i++){ const a=players[i]; if(a.tag>0) continue; for(let j=i+1;j<players.length;j++){ const b=players[j]; if(b.tag>0) continue; if((a===human||b===human)&&human.inCar) continue; const dx=a.x-b.x,dz=a.z-b.z,d=Math.hypot(dx,dz),min=PLAYER_R*2; if(d<min&&d>0.0001){ const p=(min-d)*0.5; a.x+=(dx/d)*p; a.z+=(dz/d)*p; b.x-=(dx/d)*p; b.z-=(dz/d)*p; } } }
             for(let i=bullets.length-1;i>=0;i--){ const b=bullets[i],step=Math.hypot(b.vx,b.vz)*dt; b.x+=b.vx*dt; b.z+=b.vz*dt; b.y+=(b.vy||0)*dt; b.dist+=step; b.mesh.position.set(b.x,b.y,b.z); b.mesh.rotation.y=Math.atan2(b.vx,b.vz); b.mesh.rotation.x=-Math.atan2(b.vy||0,Math.hypot(b.vx,b.vz));
@@ -1026,6 +1069,7 @@
             for(const pk of pickups){ if(pk.taken) continue; pk.grp.rotation.y+=dt*1.1; pk.grp.position.y=pk.y+11+Math.sin(timeNow*2)*2;
                 if(human&&human.tag<=0&&(human.x-pk.x)**2+(human.z-pk.z)**2<28*28){ pk.taken=true; pk.grp.visible=false;
                     if(pk.type==='armour'){ human.armour=ARMOUR_MAX; toast('🛡️ Armour picked up!'); spawnEffect(human.x,human.y+BODY_OFF,human.z,0x8fd0ff,8,42,0.5); }
+                    else if(pk.type==='drone'){ human.drones=(human.drones||0)+1; toast('🚁 Drone collected ('+human.drones+') — switch to it in Inventory (I)'); spawnEffect(human.x,human.y+BODY_OFF,human.z,0x8effc0,8,42,0.5); }
                     else { human.hasMG=true; human.weapon='mg'; toast('🔫 Machine gun! M / WPN to switch'); spawnEffect(human.x,human.y+BODY_OFF,human.z,0xffe08a,8,42,0.5); } } }
             for(const gm of gems3d){ gm.grp.rotation.y+=dt*1.7; gm.grp.position.y=gm.y+14+Math.sin(timeNow*2.2+gm.phase)*2.6;
                 if(human&&human.tag<=0&&(human.x-gm.x)**2+(human.z-gm.z)**2<GEM_PICK_R*GEM_PICK_R){ awardGems(GEM_VALUE); respawnGem(gm); } }
@@ -1052,7 +1096,9 @@
             // army car: place, steer, aim the turret at the driver's look
             const cg=car.mesh; cg.position.set(car.x,car.y,car.z); cg.rotation.y=car.yaw;
             cg._turret.rotation.y=(human?human.yaw:0)-car.yaw; cg._gun.rotation.x=human?Math.max(-0.5,Math.min(0.5,human.pitch*0.7)):0;
-            const wd=Math.hypot(car.vx,car.vz)*dtNow*0.16; if(wd>0.0001) for(const w of cg._wheels) w.rotateY(wd); }
+            const wd=Math.hypot(car.vx,car.vz)*dtNow*0.16; if(wd>0.0001) for(const w of cg._wheels) w.rotateY(wd);
+            // drone: place, face heading, tilt into motion, spin rotors
+            if(drone.active){ const dg=drone.mesh; dg.position.set(drone.x,drone.y,drone.z); dg.rotation.set(Math.max(-0.4,Math.min(0.4,-drone.vz*0.002)),drone.yaw,Math.max(-0.4,Math.min(0.4,drone.vx*0.002))); for(const r of dg._rotors) r.rotation.y+=dtNow*40; } }
         function updateCamera(){ if(!human) return;
             if(camRocket){ if(rockets.indexOf(camRocket)===-1){ camRocket=null; } else { const v=camRocket,tank=v.tankCam,hv=Math.hypot(v.vx,v.vz)||1,fx=v.vx/hv,fz=v.vz/hv;
                 const td=tank?Math.max(280,Math.min(1150,200+v.dist*0.5)):Math.max(140,Math.min(650,90+v.dist*0.6));   // tank shell: follow from further behind
@@ -1061,6 +1107,7 @@
                 camera.position.x+=(cx-camera.position.x)*lf; camera.position.y+=(cy-camera.position.y)*lf; camera.position.z+=(cz-camera.position.z)*lf;
                 camera.lookAt(v.x,v.y,v.z); return; } }
             if(camGlide){ camera.position.set(camGlide.x,camGlide.y,camGlide.z); camera.lookAt(camGlide.ix,camGlide.iy,camGlide.iz); return; }   // keep coasting & watching the impact, then end
+            if(human.inDrone&&drone.active){ const dy=drone.yaw,fx=Math.sin(dy),fz=Math.cos(dy); camera.position.set(drone.x-fx*48,drone.y+26,drone.z-fz*48); camera.lookAt(drone.x+fx*36,drone.y-4,drone.z+fz*36); return; }
             const f={x:Math.sin(human.yaw),z:Math.cos(human.yaw)},cr=human.crouch?CROUCH_DROP:0;
             if(viewMode==='fpv'&&fpvBullet&&bullets.indexOf(fpvBullet)!==-1){ const eye=human.y+EYE_Y-cr,d=aimDir(human); camera.position.set(human.x+f.x*1.5,eye+1.5,human.z+f.z*1.5); camera.lookAt(human.x+d.x*60,eye+1.5+d.y*60,human.z+d.z*60); return; }
             const cd=human.inCar?92:CAM_DIST, ch=human.inCar?80:CAM_HEIGHT;
@@ -1072,7 +1119,8 @@
         function compass(yaw){ const dirs=['S','SE','E','NE','N','NW','W','SW'],a=((Math.atan2(Math.sin(yaw),Math.cos(yaw))+Math.PI*2)%(Math.PI*2)); return dirs[Math.round(a/(Math.PI/4))%8]; }
         function updateHUD(){ elScoreR.textContent=score.red; elScoreB.textContent=score.blue;
             if(human){ elHeading.textContent=compass(human.yaw); const cd=human.rocketCD; if(cd>0.05){ elAmmo.classList.add('empty'); elAmmo.innerHTML='🚀 Reloading '+Math.ceil(cd)+'s'; } else { elAmmo.classList.remove('empty'); elAmmo.innerHTML='🚀 Rocket ready <span class="g">(R)</span>'; }
-                if(human.inCar){ elWeapon.style.display='block'; const hpct=Math.round(car.heat/CAR_HEAT_MAX*100); const cannon=car.fireT>0.05?'🚀 Reloading '+Math.ceil(car.fireT)+'s':'🚀 Cannon ready'; elWeapon.textContent=(car.overheated?'🔥 OVERHEATED  ':'🛡 '+cannon+'  ')+'🌡 '+hpct+'%'; }
+                if(human.inDrone){ elWeapon.style.display='block'; elWeapon.textContent='🚁 Drone  🔋 '+Math.max(0,Math.ceil(drone.battery))+'s'+(drone.dead?' — FALLING':'  · FIRE to detonate'); }
+                else if(human.inCar){ elWeapon.style.display='block'; const hpct=Math.round(car.heat/CAR_HEAT_MAX*100); const cannon=car.fireT>0.05?'🚀 Reloading '+Math.ceil(car.fireT)+'s':'🚀 Cannon ready'; elWeapon.textContent=(car.overheated?'🔥 OVERHEATED  ':'🛡 '+cannon+'  ')+'🌡 '+hpct+'%'; }
                 else if(human.weapon==='mg'){ elWeapon.style.display='block'; elWeapon.textContent='🔫 MG  '+Math.floor(human.mgAmmo)+'/'+MG_MAX; } else if(human.hasMG){ elWeapon.style.display='block'; elWeapon.textContent='🔫 Pistol — M/WPN to switch'; } else elWeapon.style.display='none';
                 elAir.textContent='✈️ '+human.airstrikes;
                 if(building){ elBuild.style.display='block'; elBuild.textContent='🔨 '+(building.type==='wall'?'Wall':'Pillbox')+'  '+Math.ceil(building.dur-building.t)+'s'; } else elBuild.style.display='none';
@@ -1112,16 +1160,16 @@
             for(let i=players.length-1;i>=0;i--){ if(players[i].reinforce){ scene.remove(players[i].mesh); scene.remove(players[i].mesh._blob); players.splice(i,1); } }
             for(const pk of pickups){ pk.taken=false; pk.grp.visible=true; }
             score.red=0; score.blue=0; returnHome(flags.red); returnHome(flags.blue);
-            for(const e of players){ e.x=e.spawn.x; e.z=e.spawn.z; e.y=terrainH(e.x,e.z); e.vx=e.vz=e.vy=0; e.airborne=false; e.crouch=false; e.inCar=false; e.tag=0; e.carrying=null; e.cooldown=0.4+Math.random()*0.6; e.rocketCD=0; e.rocketWind=0; e.hasMG=false; e.weapon='pistol'; e.mgAmmo=MG_MAX; e.hp=MAX_HP; e.armour=0; e.airstrikes=AIRSTRIKES; e.yaw=e.team==='blue'?0:Math.PI; }
+            for(const e of players){ e.x=e.spawn.x; e.z=e.spawn.z; e.y=terrainH(e.x,e.z); e.vx=e.vz=e.vy=0; e.airborne=false; e.crouch=false; e.inCar=false; e.inDrone=false; e.drones=0; e.tag=0; e.carrying=null; e.cooldown=0.4+Math.random()*0.6; e.rocketCD=0; e.rocketWind=0; e.hasMG=false; e.weapon='pistol'; e.mgAmmo=MG_MAX; e.hp=MAX_HP; e.armour=0; e.airstrikes=AIRSTRIKES; e.yaw=e.team==='blue'?0:Math.PI; }
             gems=0; SHOP.helmet=SHOP.boots=SHOP.rapid=false; nearArmoury=false; elShop.classList.add('hidden');   // gems + purchases clear each match (no save between sessions)
             if(human){ human.speed=RUN_SPEED; clearCombatHelmet(human.mesh); } for(const gm of gems3d) respawnGem(gm);
-            assignBuddies(); placeCar();
+            assignBuddies(); placeCar(); drone.active=false; drone.dead=false; drone.mesh.visible=false;
             if(human) human.pitch=0; viewMode='third'; fpvBullet=null; gameOver=false; running=false; elWin.classList.add('hidden'); elPause.classList.add('hidden'); elStart.classList.remove('hidden'); }
 
         // ===================== MAIN LOOP =====================
         setupTeams(); placeCar();
         // player is solid; third-person view sits behind & slightly high, bullets follow the crosshair
-        window.FIA={ players, flags, score, bullets, rockets, pickups, planes, bombs, turrets, car, BASES, OBSTACLES, scene, camera, renderer, sun, update, fireBullet, fireRocket, explodeRocket, hit, playerShoot, jump, callAirstrike, openInventory, closeInventory, startBuild, threatLevel, manageDefenders, terrainH, pointInIsland, clampToIsland, ISLAND_POLY, isTouch, toggleCar, assignBuddies, trackSun, drawMinimap, syncMeshes,
+        window.FIA={ players, flags, score, bullets, rockets, pickups, planes, bombs, turrets, car, drone, BASES, OBSTACLES, scene, camera, renderer, sun, update, fireBullet, fireRocket, explodeRocket, hit, playerShoot, jump, callAirstrike, openInventory, closeInventory, startBuild, threatLevel, manageDefenders, terrainH, pointInIsland, clampToIsland, ISLAND_POLY, isTouch, toggleCar, launchDrone, assignBuddies, trackSun, drawMinimap, syncMeshes,
             SHOP, SHOP_ITEMS, gems3d, armouries, buyItem, awardGems,
             get human(){return human;}, get running(){return running;}, set running(v){running=v;}, get viewMode(){return viewMode;}, get fpvBullet(){return fpvBullet;}, get touchMove(){return touchMove;}, get inventoryOpen(){return inventoryOpen;}, get building(){return building;}, get camRocket(){return camRocket;},
             get gems(){return gems;}, set gems(v){gems=v;}, get nearArmoury(){return nearArmoury;} };
