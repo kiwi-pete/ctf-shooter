@@ -273,15 +273,11 @@
         const gnx=221,gnz=441, gx0=-BBOX_W/2,gz0=-ISLAND_LENGTH/2, gdx=BBOX_W/(gnx-1),gdz=ISLAND_LENGTH/(gnz-1);
         const Hgrid=new Float32Array(gnx*gnz); const BEACH_W=150;
         function bump(x,z,cx,cz,r,h){ const d2=(x-cx)*(x-cx)+(z-cz)*(z-cz); return h*Math.exp(-d2/(2*r*r)); }
-        function hillField(x,z){ let h=20*Math.sin(x*0.0006+1.3)*Math.cos(z*0.00055+0.4)+12*Math.sin(x*0.0014+2.1)*Math.cos(z*0.0012+1.1)+7*Math.sin(x*0.003+0.5)*Math.cos(z*0.0027+2.3)+4*Math.sin(x*0.006+1.9)*Math.cos(z*0.0058+0.7);
-            h+=bump(x,z,360,-960,560,624); h+=bump(x,z,-750,2700,680,540); h+=bump(x,z,1140,-3750,600,744); h+=bump(x,z,-360,6000,600,420);
-            h+=bump(x,z,900,4200,560,480); h+=bump(x,z,-1200,-2400,620,432); h+=bump(x,z,360,1500,500,348); h+=bump(x,z,-720,-5400,580,396);
-            h+=bump(x,z,1200,900,500,744); h+=bump(x,z,-1500,1200,520,600); h+=bump(x,z,1500,-1500,460,804); h+=bump(x,z,1500,-7200,500,492);
-            h+=bump(x,z,1800,-4500,520,660); h+=bump(x,z,2100,-2400,500,696); h+=bump(x,z,-1950,-300,480,600);
-            h+=bump(x,z,1200,-5100,500,540); h+=bump(x,z,-1500,-4800,520,492); h+=bump(x,z,0,-3300,540,642); h+=bump(x,z,900,-2400,480,450);
-            h+=bump(x,z,-1200,-1500,500,600); h+=bump(x,z,-300,-600,460,714); h+=bump(x,z,-300,-4500,500,420); h+=bump(x,z,2700,-4500,480,516);
-            h+=bump(x,z,-1800,-3000,520,684); h+=bump(x,z,-1500,300,500,570); h+=bump(x,z,-1500,-6000,500,456); h+=bump(x,z,2100,-3300,480,768);
-            h+=bump(x,z,900,-7800,500,390); h+=bump(x,z,-300,-6000,520,510); h+=bump(x,z,1800,1800,540,660); return h; }
+        function hillField(x,z){ let h=9*Math.sin(x*0.0005+1.3)*Math.cos(z*0.00045+0.4)+5*Math.sin(x*0.0012+2.1)*Math.cos(z*0.001+1.1);   // gentle undulation everywhere else
+            h+=bump(x,z,300,-3000,480,820);   // ~1/3 down from the top (north)
+            h+=bump(x,z,0,-1200,460,860);     // just east of Stone Town, near the middle
+            h+=bump(x,z,300,3000,500,780);    // ~1/3 up from the bottom (south)
+            return h; }
         function computeHeight(x,z){ if(!pointInIsland(x,z)){ const d=Math.sqrt(nearestOnBoundary(x,z).d2); return Math.max(-60,-8-d*0.28); }
             const d=Math.sqrt(nearestOnBoundary(x,z).d2); const beach=(function(t){t=Math.max(0,Math.min(1,t/BEACH_W));return t*t*(3-2*t);})(d); return Math.max(0.4,beach*(6+hillField(x,z))); }
         for(let j=0;j<gnz;j++) for(let i=0;i<gnx;i++){ Hgrid[j*gnx+i]=computeHeight(gx0+i*gdx,gz0+j*gdz); }
@@ -407,8 +403,15 @@
             gr.addColorStop(0,'#356bb0'); gr.addColorStop(0.45,'#7fc0e8'); gr.addColorStop(0.78,'#bfe2f2'); gr.addColorStop(1,'#e8f4fb'); g.fillStyle=gr; g.fillRect(0,0,16,256);
             const tx=new THREE.CanvasTexture(c); tx.encoding=THREE.sRGBEncoding;
             const dome=new THREE.Mesh(new THREE.SphereGeometry(ISLAND_LENGTH*1.6,24,16), new THREE.MeshBasicMaterial({map:tx,side:THREE.BackSide,depthWrite:false,fog:false})); scene.add(dome);
+            // the sun — a soft halo + a bright core, fixed high in the sky as a point of reference
             const sd=new THREE.Vector3(800,1500,500).normalize().multiplyScalar(ISLAND_LENGTH*1.5);
-            const disc=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xfff2c8,transparent:true,depthWrite:false,depthTest:false,fog:false,blending:THREE.AdditiveBlending})); disc.scale.set(820,820,1); disc.position.copy(sd); scene.add(disc);
+            const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xfff0c0,transparent:true,depthWrite:false,depthTest:false,fog:false,blending:THREE.AdditiveBlending})); halo.scale.set(1500,1500,1); halo.position.copy(sd); scene.add(halo);
+            const core=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xffffff,transparent:true,depthWrite:false,depthTest:false,fog:false,blending:THREE.AdditiveBlending})); core.scale.set(560,560,1); core.position.copy(sd); scene.add(core);
+            // a few small cumulus clouds (procedural puff clusters, high up, fog-exempt)
+            const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.9,depthWrite:false,fog:false});
+            function cloud(cx,cy,cz,s){ const g=new THREE.Group(); const puffs=[[0,0,0,1],[s*0.95,-s*0.12,0,0.72],[-s*0.95,-s*0.1,0,0.76],[s*0.5,s*0.28,s*0.3,0.62],[-s*0.45,s*0.22,-s*0.3,0.6]];
+                for(const p of puffs){ const m=new THREE.Mesh(new THREE.SphereGeometry(s*p[3],10,8),cloudMat); m.position.set(cx+p[0],cy+p[1],cz+p[2]); m.scale.y=0.55; g.add(m); } scene.add(g); }
+            cloud(-2200,2400,-1800,170); cloud(2800,2700,2400,150); cloud(700,2500,4600,200);
         })();
 
         // ---- procedural sound (Web Audio, synthesized — no audio files) ----
@@ -508,7 +511,7 @@
             let d=forestDensity(x,z); if(y>160) d*=Math.max(0,1-(y-160)/80);   // treeline: thin going up the slope, BARE summits (no trees above ~240) so you can climb & look across the island
             if(Math.random()>=d) continue;   // patchy: groves vs clearings vs firebreaks
             let nc=false; for(const vc of villageCenters){ const dx=x-vc.x,dz=z-vc.z; if(dx*dx+dz*dz<230*230){ nc=true; break; } } if(nc&&(guard%4)!==0) continue;   // thin trees in town cores, keep streets readable
-            treePlace.push({x:x,z:z,s:TREE_SCALE*(0.7+((guard*13)%70)/100),palm:(y<6)}); n++; } })();
+            const ts=TREE_SCALE*(0.7+((guard*13)%70)/100); treePlace.push({x:x,z:z,s:ts,palm:(y<6)}); OBSTACLES.push({x:x,z:z,r:Math.max(8,ts*2.2)}); n++; } })();   // trees are solid — walk around them
         buildHouseInstances(); buildTreeInstances();
         // taller-than-player buildings for cover (block movement, sight and bullets)
         function buildCover(nx,nz,big){ const p=settleInside(toWorld(nx,nz),PLAYER_R+12),y=terrainH(p.x,p.z); const grp=new THREE.Group(); grp.position.set(p.x,y,p.z);
@@ -1075,7 +1078,7 @@
         const mm=document.getElementById('minimap'), mmx=mm.getContext('2d'); const MMW=120,MMH=216,MMP=7;
         function mmPt(xn,zn){ return [MMP+xn*(MMW-2*MMP), MMP+(1-zn)*(MMH-2*MMP)]; }
         function w2n(x,z){ return [x/BBOX_W+0.5, 0.5-z/ISLAND_LENGTH]; }
-        const MM_HILLS=[[360,-960],[1140,-3750],[1500,-1500],[1200,900],[2100,-2400],[-1950,-300],[1800,-4500],[900,4200],[-750,2700],[2100,-3300],[0,-3300],[-1800,-3000],[1800,1800],[-300,-600]].map(c=>w2n(c[0],c[1]));
+        const MM_HILLS=[[300,-3000],[0,-1200],[300,3000]].map(c=>w2n(c[0],c[1]));
         function mmDot(nx,nz,col,r){ const c=mmPt(nx,nz); mmx.fillStyle=col; mmx.beginPath(); mmx.arc(c[0],c[1],r,0,7); mmx.fill(); }
         // the island outline, hill rings and base markers never move — render them once to an offscreen layer
         const mmStatic=document.createElement('canvas'); mmStatic.width=MMW; mmStatic.height=MMH; let mmStaticReady=false;
