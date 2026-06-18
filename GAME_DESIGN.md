@@ -46,7 +46,11 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
 - The **sea is animated** (swell + whitecaps) with **breaking-surf rings** at beaches.
 - **Scale & pace:** ~**18000 units N–S** (a big, explorable island); walk speed **83.5 u/s**
   — half that while carrying the machine gun; the army car (2×) is the fast way to cross it.
-- **Trees and buildings are 4× scale** (towering trees, multi-storey houses).
+- **Trees and buildings are 4× scale** (towering trees, multi-storey houses). **Trees are
+  solid** — you walk around them like buildings.
+- **Just 3 big hills** (one ~1/3 from the top, one ~1/3 from the bottom, one east of Stone
+  Town) with otherwise gently-undulating ground, so you can see across the island from a
+  summit. A **sun** and a few **cumulus clouds** sit in the sky as reference points.
 - **13 villages** are real **walkable towns**: each is a grid of **12+ houses** (Stone Town
   20+) with **streets you walk/drive down** and per-building collision. Billboarded labels.
   **Jozani is a forest you walk through** (individual tree collision); rocks are cover too.
@@ -76,11 +80,16 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
   so they don't bunch, **approach off-axis (flank) and sneak**, and **take a knee (crouch)**
   to fire when an enemy is in sight — crouching slows them and shrinks their profile.
 - **Jump** and **crouch** (crouch lowers your stance, slows you, and shrinks your profile).
-- **Army car (E to get in/out):** an open-top military 4×4 with a **mounted turret** parked
-  by the Blue base. It **drives at ×2 walk speed**, the camera pulls back, and the turret
-  aims where you look. The gun holds **40 rounds and regenerates like the machine gun**.
-  The engine **overheats after 20 s of driving** and needs **~18 s to cool** (engine cut
-  while it cools). It **rides over the hills** and **launches into the air off steep crests**.
+- **Tank (E to get in/out):** an open-top 4×4 with a **mounted cannon** parked by the
+  Blue base. It **drives at ×2 walk speed**, the camera pulls back, and the cannon aims
+  where you look. The cannon **lobs a rocket-equivalent every 3 s at 2.5× range**; the
+  camera **follows that shell from further back and slower** than your own rocket, then
+  glides back to the tank view ~0.5 s after impact. Engine **overheats after 20 s** (~18 s
+  to cool). It **rides over the hills** and **launches off steep crests**.
+- **Drone (collect 3 in the field; switch to it in Inventory I, key 5):** a single-use
+  quadcopter you pilot — **WASD fly, look up/down to climb/dive, Shift up / C down**, camera
+  behind & above. **20 s battery**, then it dies, falls and explodes. **FIRE detonates it**
+  (kamikaze); flying into the ground, a tree/building or an enemy also detonates it.
 
 ## Economy — gems & the base shop (per-match)
 - **Gems** are a single, simple currency the **human player only** earns and spends (bots
