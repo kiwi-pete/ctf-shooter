@@ -166,7 +166,7 @@
         const JUMP_V = 80, GRAVITY = 215, CROUCH_SPEED = 0.5, CROUCH_DROP = 9;
         const MG_MAX = 20, MG_REGEN = 2, MG_FIRE_DT = 0.1, MG_SPEED_MULT = 0.5;   // belt-fed machine gun
         // Army car: drives at 2× walk, turret holds 40 rounds & regenerates like the MG, overheats after 20s of driving (~18s to cool)
-        const CAR_SPEED = RUN_SPEED*2, CAR_ACCEL = 200, CAR_AMMO_MAX = 40, CAR_REGEN = 4, CAR_FIRE_DT = 0.085;
+        const CAR_SPEED = RUN_SPEED*2, CAR_ACCEL = 200, CAR_RELOAD = 3;   // car cannon: lobs a rocket-equivalent every 3s
         const CAR_HEAT_MAX = 20, CAR_COOL = 18, CAR_ENTER_DIST = 32, CAR_GRAV = 215;
         const ROCKET_WIND = 0.45;                 // enemy launcher telegraph (muzzle flash) before launch
         const THREAT_RANGE = 1500, MAX_RED = 7;   // difficulty rises as you near the Red flag
@@ -510,10 +510,10 @@
             const recv=new THREE.Mesh(new THREE.BoxGeometry(4,4,8),dark); gun.add(recv);
             const barrel=new THREE.Mesh(new THREE.CylinderGeometry(1.1,1.1,20,16),dark); barrel.rotation.x=Math.PI/2; barrel.position.z=11; gun.add(barrel);
             grp._wheels=wheels; grp._turret=turret; grp._gun=gun; castAll(grp,true); scene.add(grp); return grp; }
-        const car={ x:0,z:0,y:0,vx:0,vz:0,vy:0,yaw:0,heat:0,overheated:false,ammo:CAR_AMMO_MAX,fireT:0,airborne:false,mesh:buildCar() };
-        function placeCar(){ const sp=clampToIsland({x:BASES.blue.x+74,z:BASES.blue.z-46},PLAYER_R+6); car.x=sp.x; car.z=sp.z; car.y=terrainH(sp.x,sp.z); car.yaw=0; car.vx=car.vz=car.vy=0; car.heat=0; car.overheated=false; car.airborne=false; car.ammo=CAR_AMMO_MAX; }
+        const car={ x:0,z:0,y:0,vx:0,vz:0,vy:0,yaw:0,heat:0,overheated:false,fireT:0,airborne:false,mesh:buildCar() };
+        function placeCar(){ const sp=clampToIsland({x:BASES.blue.x+74,z:BASES.blue.z-46},PLAYER_R+6); car.x=sp.x; car.z=sp.z; car.y=terrainH(sp.x,sp.z); car.yaw=0; car.vx=car.vz=car.vy=0; car.heat=0; car.overheated=false; car.airborne=false; car.fireT=0; }
         function toggleCar(){ if(!human||!running) return; if(human.inCar){ exitCar(); } else if(human.tag<=0 && Math.hypot(human.x-car.x,human.z-car.z)<CAR_ENTER_DIST){ enterCar(); } }
-        function enterCar(){ human.inCar=true; car.yaw=human.yaw; car.vx=human.vx=0; car.vz=human.vz=0; toast('🚗 In the army car — WASD drive · FIRE = gun · E to get out'); }
+        function enterCar(){ human.inCar=true; car.yaw=human.yaw; car.vx=human.vx=0; car.vz=human.vz=0; toast('🚗 In the army car — WASD drive · FIRE = cannon (rocket every 3s) · E to get out'); }
         function exitCar(){ human.inCar=false; car.vx=car.vz=car.vy=0; car.airborne=false; const px=Math.cos(car.yaw),pz=-Math.sin(car.yaw); const sp=clampToIsland({x:car.x+px*24,z:car.z+pz*24},PLAYER_R+2); human.x=sp.x; human.z=sp.z; human.y=terrainH(sp.x,sp.z); human.vx=human.vz=human.vy=0; human.airborne=false; }
         function updateCar(dt){ const c=car;
             if(human.tag>0){ exitCar(); return; }
@@ -536,9 +536,9 @@
             if(c.airborne){ c.vy-=CAR_GRAV*dt; c.y+=c.vy*dt; const gl=terrainH(c.x,c.z); if(c.y<=gl){ c.y=gl; c.vy=0; c.airborne=false; spawnEffect(c.x,c.y+4,c.z,0xc8b78a,8,26,0.4); } }
             // mirror onto the driver so camera / HUD / minimap follow
             human.x=c.x; human.z=c.z; human.y=c.y; human.vx=c.vx; human.vz=c.vz; human.airborne=c.airborne;
-            // mounted gun: 40 rounds, regenerates like the MG
-            if(c.fireT>0) c.fireT-=dt; if(c.ammo<CAR_AMMO_MAX) c.ammo=Math.min(CAR_AMMO_MAX,c.ammo+CAR_REGEN*dt);
-            if(firing&&c.ammo>=1&&c.fireT<=0){ fireBullet(human); c.ammo--; c.fireT=CAR_FIRE_DT; human.recoil=0.9; } }
+            // mounted cannon: lobs a rocket-equivalent (arcing area blast) every 3s, no camera follow
+            if(c.fireT>0) c.fireT-=dt;
+            if(firing&&c.fireT<=0){ fireRocket(human,true,true); c.fireT=CAR_RELOAD; } }
 
         // ===================== BULLETS / ROCKETS / EFFECTS =====================
         const bullets=[];
@@ -559,12 +559,12 @@
         function buildRocketMesh(){ const g=new THREE.Group(); g.rotation.order='YXZ'; const body=new THREE.Mesh(G.rktBody,M.rktBody); body.rotation.x=Math.PI/2; g.add(body);
             const nose=new THREE.Mesh(G.rktNose,M.rktHead); nose.rotation.x=Math.PI/2; nose.position.z=9; g.add(nose);
             const tail=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xffc14d,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); tail.scale.set(24,24,1); tail.position.z=-9; g.add(tail); scene.add(g); return g; }
-        function fireRocket(shooter){ if(shooter.rocketCD>0) return false; shooter.rocketCD=ROCKET_CD;   // unlimited ammo, 10s cooldown
+        function fireRocket(shooter,noCam,skipCD){ if(!skipCD){ if(shooter.rocketCD>0) return false; shooter.rocketCD=ROCKET_CD; }   // unlimited ammo, 10s cooldown (car cannon passes its own cadence)
             const d=shotDir(shooter); const ox=shooter.x+d.x*(PLAYER_R+10),oz=shooter.z+d.z*(PLAYER_R+10),oy=shooter.y+GUN_Y+8-(shooter.crouch?CROUCH_DROP:0); // from the shoulder
             let vx=d.x*ROCKET_SPEED, vz=d.z*ROCKET_SPEED, vy=d.y*ROCKET_SPEED+ROCKET_VY0;
             if(shooter===human){ const T=crosshairPoint(), dxh=T.x-ox, dzh=T.z-oz, dh=Math.hypot(dxh,dzh), dy=T.y-oy;   // ballistic arc that lands on the crosshair point
                 if(dh>40&&dh<1600){ const t=dh/ROCKET_SPEED; vx=(dxh/dh)*ROCKET_SPEED; vz=(dzh/dh)*ROCKET_SPEED; vy=(dy+0.5*ROCKET_GRAV*t*t)/t; } }
-            const mesh=buildRocketMesh(); mesh.position.set(ox,oy,oz); const rk={x:ox,z:oz,y:oy,vx:vx,vz:vz,vy:vy,team:shooter.team,dist:0,spin:0,mesh:mesh}; rockets.push(rk); if(shooter===human) camRocket=rk; spawnEffect(ox,oy,oz,0xffd27a,12,30,0.18); sndRocketLaunch(posVol(ox,oz,0.72)); rk.snd=makeRocketSound(); if(rk.snd) rk.snd.setVol(posVol(ox,oz,0.6)); return true; }
+            const mesh=buildRocketMesh(); mesh.position.set(ox,oy,oz); const rk={x:ox,z:oz,y:oy,vx:vx,vz:vz,vy:vy,team:shooter.team,dist:0,spin:0,mesh:mesh}; rockets.push(rk); if(shooter===human&&!noCam) camRocket=rk; spawnEffect(ox,oy,oz,0xffd27a,12,30,0.18); sndRocketLaunch(posVol(ox,oz,0.72)); rk.snd=makeRocketSound(); if(rk.snd) rk.snd.setVol(posVol(ox,oz,0.6)); return true; }
         function removeRocket(i){ if(rockets[i].snd) rockets[i].snd.stop(); scene.remove(rockets[i].mesh); rockets[i].mesh.children[2].material.dispose(); rockets.splice(i,1); }
         function explodeRocket(x,y,z,team){ sndBoom(boomVol(x,z,0.95),true); spawnEffect(x,y,z,0xffb43c,16,ROCKET_BLAST*2.4,0.55); spawnEffect(x,y,z,0xffe7ad,8,ROCKET_BLAST*1.4,0.34); spawnEffect(x,y,z,0x6b4a2a,12,ROCKET_BLAST*1.9,0.85); spawnEffect(x,y,z,0x3a3a3a,9,ROCKET_BLAST*1.5,1.0);
             deformTerrain(x,z,120,36);
@@ -848,7 +848,7 @@
         function compass(yaw){ const dirs=['S','SE','E','NE','N','NW','W','SW'],a=((Math.atan2(Math.sin(yaw),Math.cos(yaw))+Math.PI*2)%(Math.PI*2)); return dirs[Math.round(a/(Math.PI/4))%8]; }
         function updateHUD(){ elScoreR.textContent=score.red; elScoreB.textContent=score.blue;
             if(human){ elHeading.textContent=compass(human.yaw); const cd=human.rocketCD; if(cd>0.05){ elAmmo.classList.add('empty'); elAmmo.innerHTML='🚀 Reloading '+Math.ceil(cd)+'s'; } else { elAmmo.classList.remove('empty'); elAmmo.innerHTML='🚀 Rocket ready <span class="g">(R)</span>'; }
-                if(human.inCar){ elWeapon.style.display='block'; const hpct=Math.round(car.heat/CAR_HEAT_MAX*100); elWeapon.textContent=(car.overheated?'🔥 OVERHEATED':'🚗 Turret '+Math.floor(car.ammo)+'/'+CAR_AMMO_MAX)+'  🌡 '+hpct+'%'; }
+                if(human.inCar){ elWeapon.style.display='block'; const hpct=Math.round(car.heat/CAR_HEAT_MAX*100); const cannon=car.fireT>0.05?'🚀 Reloading '+Math.ceil(car.fireT)+'s':'🚀 Cannon ready'; elWeapon.textContent=(car.overheated?'🔥 OVERHEATED  ':'🚗 '+cannon+'  ')+'🌡 '+hpct+'%'; }
                 else if(human.weapon==='mg'){ elWeapon.style.display='block'; elWeapon.textContent='🔫 MG  '+Math.floor(human.mgAmmo)+'/'+MG_MAX; } else if(human.hasMG){ elWeapon.style.display='block'; elWeapon.textContent='🔫 Pistol — M/WPN to switch'; } else elWeapon.style.display='none';
                 elAir.textContent='✈️ '+human.airstrikes;
                 if(building){ elBuild.style.display='block'; elBuild.textContent='🔨 '+(building.type==='wall'?'Wall':'Pillbox')+'  '+Math.ceil(building.dur-building.t)+'s'; } else elBuild.style.display='none';
@@ -894,7 +894,7 @@
         setupTeams(); placeCar();
         // player is solid; third-person view sits behind & slightly high, bullets follow the crosshair
         window.FIA={ players, flags, score, bullets, rockets, pickups, planes, bombs, turrets, car, BASES, OBSTACLES, scene, camera, renderer, sun, update, fireBullet, fireRocket, explodeRocket, hit, playerShoot, jump, callAirstrike, openInventory, closeInventory, startBuild, threatLevel, manageDefenders, terrainH, pointInIsland, clampToIsland, ISLAND_POLY, isTouch, toggleCar, assignBuddies, trackSun, drawMinimap, syncMeshes,
-            get human(){return human;}, get running(){return running;}, set running(v){running=v;}, get viewMode(){return viewMode;}, get fpvBullet(){return fpvBullet;}, get touchMove(){return touchMove;}, get inventoryOpen(){return inventoryOpen;}, get building(){return building;} };
+            get human(){return human;}, get running(){return running;}, set running(v){running=v;}, get viewMode(){return viewMode;}, get fpvBullet(){return fpvBullet;}, get touchMove(){return touchMove;}, get inventoryOpen(){return inventoryOpen;}, get building(){return building;}, get camRocket(){return camRocket;} };
         let last=0;
         animateSea(0); animateSurf(0);   // seed the water with waves so the menu/pause screens aren't flat (the per-frame sim only runs while playing)
         function loop(t){ if(!last) last=t; let dt=(t-last)/1000; last=t; if(dt>0.05) dt=0.05; if(running&&!gameOver) update(inventoryOpen?dt*INV_TIMESCALE:dt);
