@@ -3,6 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Fighting Island Arena — Zanzibar CTF</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;800&display=swap');
@@ -686,7 +689,8 @@
         function openInventory(){ if(!running||!human) return; inventoryOpen=true; document.getElementById('inventory').classList.remove('hidden'); refreshInv(); }
         function closeInventory(){ inventoryOpen=false; document.getElementById('inventory').classList.add('hidden'); }
 
-        function startGame(){ if(gameOver) return; initAudio(); audioResume(); if(isTouch){ running=true; elStart.classList.add('hidden'); elPause.classList.add('hidden'); } else { renderer.domElement.requestPointerLock(); } }
+        function goFullscreen(){ const el=document.documentElement, fn=el.requestFullscreen||el.webkitRequestFullscreen||el.webkitRequestFullScreen||el.mozRequestFullScreen; if(fn && !(document.fullscreenElement||document.webkitFullscreenElement)){ try{ const p=fn.call(el); if(p&&p.catch) p.catch(()=>{}); }catch(e){} } }
+        function startGame(){ if(gameOver) return; initAudio(); audioResume(); if(isTouch){ goFullscreen(); running=true; elStart.classList.add('hidden'); elPause.classList.add('hidden'); } else { renderer.domElement.requestPointerLock(); } }
         renderer.domElement.addEventListener('click', ()=>{ if(!isTouch) startGame(); });
         elStart.addEventListener('click', startGame); elPause.addEventListener('click', startGame);
         document.addEventListener('pointerlockchange', ()=>{ if(isTouch) return; running=(document.pointerLockElement===renderer.domElement);
