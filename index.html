@@ -227,7 +227,7 @@
         const BOOTS_SPEED_MULT = 1.5, RAPID_PISTOL_CD = 0.2, RAPID_MG_MULT = 0.55;
         const CAM_DIST = 56, CAM_HEIGHT = 64;
         const SENS_YAW = 0.0023, SENS_PITCH = 0.0021, PITCH_MIN = -0.95, PITCH_MAX = 0.95;
-        const BASE_FOV = 62, ZOOM_FOV = 13.7;   // 5× gun-scope zoom (double-tap/click to toggle)
+        const BASE_FOV = 62, ZOOM_FOV = 27;   // 2.5× gun-scope zoom (double-tap/click to toggle)
         const SEA_Y = -9;
 
         const ISLAND_NORM = [
@@ -894,7 +894,7 @@
         const keys={f:false,b:false,l:false,r:false,up:false,down:false}; let firing=false, gDown=false, spaceDown=false, cDown=false, jDown=false, mDown=false, iDown=false, bDown=false, eDown=false, key3Held=false;
         let running=false, gameOver=false, viewMode='third', fpvBullet=null, fpvTimer=0, inventoryOpen=false, scoped=false;
         const elScope=document.getElementById('scope');
-        function setScope(on){ if(on&&(!human||human.inCar||human.inDrone||human.inGun||human.tag>0)) return; scoped=on; camera.fov=on?ZOOM_FOV:BASE_FOV; camera.updateProjectionMatrix(); elScope.style.display=on?'block':'none'; const ch=document.getElementById('crosshair'); if(ch) ch.style.display=on?'none':'block'; if(on) toast('🔭 5× scope — double-'+(isTouch?'tap FIRE':'click')+' to zoom out'); }
+        function setScope(on){ if(on&&(!human||human.inCar||human.inDrone||human.inGun||human.tag>0)) return; scoped=on; camera.fov=on?ZOOM_FOV:BASE_FOV; camera.updateProjectionMatrix(); elScope.style.display=on?'block':'none'; const ch=document.getElementById('crosshair'); if(ch) ch.style.display=on?'none':'block'; if(on) toast('🔭 2.5× scope — double-'+(isTouch?'tap FIRE':'click')+' to zoom out'); }
         function toggleScope(){ setScope(!scoped); }
         let playerTeam='blue', enemyTeam='red';   // 'blue' = north (top), 'red' (shown as GREEN) = south (bottom) — chosen on the start screen
         let gems=0, nearArmoury=false; const SHOP={ helmet:false, boots:false, rapid:false };   // per-match wallet + purchases (human only)
