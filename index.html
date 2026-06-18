@@ -275,9 +275,9 @@
         const Hgrid=new Float32Array(gnx*gnz); const BEACH_W=150;
         function bump(x,z,cx,cz,r,h){ const d2=(x-cx)*(x-cx)+(z-cz)*(z-cz); return h*Math.exp(-d2/(2*r*r)); }
         function hillField(x,z){ let h=9*Math.sin(x*0.0005+1.3)*Math.cos(z*0.00045+0.4)+5*Math.sin(x*0.0012+2.1)*Math.cos(z*0.001+1.1);   // gentle undulation everywhere else
-            h+=bump(x,z,300,-3000,480,820);   // ~1/3 down from the top (north)
-            h+=bump(x,z,0,-1200,460,860);     // just east of Stone Town, near the middle
-            h+=bump(x,z,300,3000,500,780);    // ~1/3 up from the bottom (south)
+            h+=bump(x,z,300,-3000,480,541);   // ~1/3 down from the top (north)
+            h+=bump(x,z,0,-1200,460,430);     // just east of Stone Town, near the middle
+            h+=bump(x,z,300,3000,500,515);    // ~1/3 up from the bottom (south)
             return h; }
         function computeHeight(x,z){ if(!pointInIsland(x,z)){ const d=Math.sqrt(nearestOnBoundary(x,z).d2); return Math.max(-60,-8-d*0.28); }
             const d=Math.sqrt(nearestOnBoundary(x,z).d2); const beach=(function(t){t=Math.max(0,Math.min(1,t/BEACH_W));return t*t*(3-2*t);})(d); return Math.max(0.4,beach*(6+hillField(x,z))); }
@@ -405,14 +405,14 @@
             const tx=new THREE.CanvasTexture(c); tx.encoding=THREE.sRGBEncoding;
             const dome=new THREE.Mesh(new THREE.SphereGeometry(ISLAND_LENGTH*1.6,24,16), new THREE.MeshBasicMaterial({map:tx,side:THREE.BackSide,depthWrite:false,fog:false})); scene.add(dome);
             // the sun — a soft halo + a bright core, fixed high in the sky as a point of reference
-            const sd=new THREE.Vector3(800,1500,500).normalize().multiplyScalar(ISLAND_LENGTH*1.5);
+            const sd=new THREE.Vector3(1600,1300,0).normalize().multiplyScalar(ISLAND_LENGTH*1.5);   // due east (+x), so the sun marks the east side
             const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xfff0c0,transparent:true,depthWrite:false,depthTest:false,fog:false,blending:THREE.AdditiveBlending})); halo.scale.set(1500,1500,1); halo.position.copy(sd); scene.add(halo);
             const core=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0xffffff,transparent:true,depthWrite:false,depthTest:false,fog:false,blending:THREE.AdditiveBlending})); core.scale.set(560,560,1); core.position.copy(sd); scene.add(core);
             // a few small cumulus clouds (procedural puff clusters, high up, fog-exempt)
             const cloudMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.9,depthWrite:false,fog:false});
             function cloud(cx,cy,cz,s){ const g=new THREE.Group(); const puffs=[[0,0,0,1],[s*0.95,-s*0.12,0,0.72],[-s*0.95,-s*0.1,0,0.76],[s*0.5,s*0.28,s*0.3,0.62],[-s*0.45,s*0.22,-s*0.3,0.6]];
                 for(const p of puffs){ const m=new THREE.Mesh(new THREE.SphereGeometry(s*p[3],10,8),cloudMat); m.position.set(cx+p[0],cy+p[1],cz+p[2]); m.scale.y=0.55; g.add(m); } scene.add(g); }
-            cloud(-2200,2400,-1800,170); cloud(2800,2700,2400,150); cloud(700,2500,4600,200);
+            cloud(-5600,2400,-3000,170); cloud(-6000,2700,200,150); cloud(-5300,2500,3400,200);   // all 3 west of the island, out over the sea — none above the island
         })();
 
         // ---- procedural sound (Web Audio, synthesized — no audio files) ----
@@ -458,9 +458,9 @@
             houses.push({x:x,z:z,s:s,hgt:0.85+(seed%5)*0.22,yaw:(seed%4)*(Math.PI/2)+((seed%7)-3)*0.07,col:HOUSE_COLS[seed%HOUSE_COLS.length]});
             OBSTACLES.push({x:x,z:z,r:5.2*s}); }
         function plantTree(x,z,palm,parent){ const y=terrainH(x,z); const host=parent||scene; const TS=TREE_SCALE;
-            const trunk=new THREE.Mesh(G.trunk,M.trunk); trunk.position.set(x,y+8*TS,z); trunk.scale.set(TS,TS,TS); trunk.castShadow=true; host.add(trunk);
-            if(palm){ const top=new THREE.Mesh(G.palmTop,M.leaf); top.position.set(x,y+17*TS,z); top.scale.set(1.6*TS,0.8*TS,1.6*TS); top.castShadow=true; host.add(top); }
-            else { const c1=new THREE.Mesh(G.canopy,M.leaf); c1.position.set(x,y+22*TS,z); c1.scale.set(TS,TS,TS); c1.castShadow=true; host.add(c1); const c2=new THREE.Mesh(G.canopy2,M.leafDk); c2.position.set(x,y+30*TS,z); c2.scale.set(TS,TS,TS); host.add(c2); } }
+            const trunk=new THREE.Mesh(G.trunk,M.trunk); trunk.position.set(x,y+9.6*TS,z); trunk.scale.set(TS,TS*1.2,TS); trunk.castShadow=true; host.add(trunk);
+            if(palm){ const top=new THREE.Mesh(G.palmTop,M.leaf); top.position.set(x,y+20*TS,z); top.scale.set(1.6*TS,0.8*TS,1.6*TS); top.castShadow=true; host.add(top); }
+            else { const c1=new THREE.Mesh(G.canopy,M.leaf); c1.position.set(x,y+25*TS,z); c1.scale.set(TS,TS,TS); c1.castShadow=true; host.add(c1); const c2=new THREE.Mesh(G.canopy2,M.leafDk); c2.position.set(x,y+33*TS,z); c2.scale.set(TS,TS,TS); host.add(c2); } }
         function plantForest(cx,cz,radius,count,seed){ for(let i=0;i<count;i++){ const a=(i*2.39996+seed),r=radius*Math.sqrt(((i*97+seed*13)%100)/100),x=cx+Math.cos(a)*r,z=cz+Math.sin(a)*r;
             if(!pointInIsland(x,z)) continue; plantTree(x,z,false); OBSTACLES.push({x:x,z:z,r:9}); } }
         // a real village: a grid of 4x-scale houses with walkable street gaps + per-building collision
@@ -483,9 +483,10 @@
             const bodyIM=new THREE.InstancedMesh(G.hutBody,bodyMat,n), roofIM=new THREE.InstancedMesh(G.hutRoof,M.roof,n);
             bodyIM.castShadow=false; bodyIM.receiveShadow=true; roofIM.castShadow=false; bodyIM.frustumCulled=false; roofIM.frustumCulled=false;
             const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),p=new THREE.Vector3(),sc=new THREE.Vector3(),col=new THREE.Color();
-            for(let i=0;i<n;i++){ const h=houses[i],y=terrainH(h.x,h.z),bh=9*h.s*1.18*h.hgt;
-                q.setFromAxisAngle(up,h.yaw); p.set(h.x,y+bh/2,h.z); sc.set(h.s,h.s*1.18*h.hgt,h.s); mtx.compose(p,q,sc); bodyIM.setMatrixAt(i,mtx); bodyIM.setColorAt(i,col.setHex(h.col));
-                q.setFromAxisAngle(up,Math.PI/4+h.yaw); p.set(h.x,y+bh+3.4*h.s,h.z); sc.set(h.s,h.s,h.s); mtx.compose(p,q,sc); roofIM.setMatrixAt(i,mtx); }
+            for(let i=0;i<n;i++){ const h=houses[i],bh=9*h.s*1.18*h.hgt,hw=5.5*h.s;
+                const base=Math.min(terrainH(h.x,h.z),terrainH(h.x-hw,h.z-hw),terrainH(h.x+hw,h.z-hw),terrainH(h.x-hw,h.z+hw),terrainH(h.x+hw,h.z+hw))-6;   // sink to below the lowest footprint corner so it never floats on a slope
+                q.setFromAxisAngle(up,h.yaw); p.set(h.x,base+bh/2,h.z); sc.set(h.s,h.s*1.18*h.hgt,h.s); mtx.compose(p,q,sc); bodyIM.setMatrixAt(i,mtx); bodyIM.setColorAt(i,col.setHex(h.col));
+                q.setFromAxisAngle(up,Math.PI/4+h.yaw); p.set(h.x,base+bh+3.4*h.s,h.z); sc.set(h.s,h.s,h.s); mtx.compose(p,q,sc); roofIM.setMatrixAt(i,mtx); }
             bodyIM.instanceMatrix.needsUpdate=true; if(bodyIM.instanceColor) bodyIM.instanceColor.needsUpdate=true; roofIM.instanceMatrix.needsUpdate=true; scene.add(bodyIM); scene.add(roofIM); }
         // build all collected trees as InstancedMeshes (trunk for all, canopies for leafy, top for palms)
         function buildTreeInstances(){ const all=treePlace, leafy=all.filter(t=>!t.palm), palms=all.filter(t=>t.palm);
@@ -493,7 +494,7 @@
                 const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),p=new THREE.Vector3(),sc=new THREE.Vector3();
                 for(let i=0;i<list.length;i++){ const t=list[i],y=terrainH(t.x,t.z); q.setFromAxisAngle(up,(t.x*0.13+t.z*0.07)%6.283); p.set(t.x,y+oy*t.s,t.z); sc.set(sxz*t.s,sy*t.s,sxz*t.s); mtx.compose(p,q,sc); im.setMatrixAt(i,mtx); }
                 im.instanceMatrix.needsUpdate=true; scene.add(im); }
-            build(G.trunk,M.trunk,all,8,1,1); build(G.canopy,M.leaf,leafy,22,1,1); build(G.canopy2,M.leafDk,leafy,30,1,1); build(G.palmTop,M.leaf,palms,17,1.6,0.8); }
+            build(G.trunk,M.trunk,all,9.6,1,1.2); build(G.canopy,M.leaf,leafy,25,1,1); build(G.canopy2,M.leafDk,leafy,33,1,1); build(G.palmTop,M.leaf,palms,20,1.6,0.8); }
         function buildRock(nx,nz){ const pos=settleInside(toWorld(nx,nz),PLAYER_R+4),y=terrainH(pos.x,pos.z); const grp=new THREE.Group(); grp.position.set(pos.x,y,pos.z);
             const mat=M.rock.clone(); for(let i=0;i<3;i++){ const m=new THREE.Mesh(G.rock,mat),s=0.7+i*0.45; m.scale.set(s,s*0.75,s); m.position.set((i-1)*6,4*s,(i%2)*5-2); m.rotation.set(i,i*1.7,i*0.6); grp.add(m); } grp.scale.set(3.5,3.5,3.5); castAll(grp,true); scene.add(grp); OBSTACLES.push({x:pos.x,z:pos.z,y:y,r:42,grp:grp,mats:[mat],baseCols:[mat.color.clone()],hp:30,maxhp:30,kind:'rock'}); }
         function buildBase(team,nrm){ const pos=settleInside(toWorld(nrm.xn,nrm.zn),BASE_R+6),y=terrainH(pos.x,pos.z); const grp=new THREE.Group(); grp.position.set(pos.x,y,pos.z);
@@ -515,7 +516,8 @@
             const ts=TREE_SCALE*(0.7+((guard*13)%70)/100); treePlace.push({x:x,z:z,s:ts,palm:(y<6)}); OBSTACLES.push({x:x,z:z,r:Math.max(8,ts*2.2)}); n++; } })();   // trees are solid — walk around them
         buildHouseInstances(); buildTreeInstances();
         // taller-than-player buildings for cover (block movement, sight and bullets)
-        function buildCover(nx,nz,big){ const p=settleInside(toWorld(nx,nz),PLAYER_R+12),y=terrainH(p.x,p.z); const grp=new THREE.Group(); grp.position.set(p.x,y,p.z);
+        function buildCover(nx,nz,big){ const p=settleInside(toWorld(nx,nz),PLAYER_R+12),y=terrainH(p.x,p.z); const grp=new THREE.Group();
+            const hw=big?68:48, base=Math.min(y,terrainH(p.x-hw,p.z-hw),terrainH(p.x+hw,p.z-hw),terrainH(p.x-hw,p.z+hw),terrainH(p.x+hw,p.z+hw))-8; grp.position.set(p.x,base,p.z);   // sink so the base never floats on a slope
             const bodyMat=M.concrete.clone(),roofMat=M.concreteDk.clone();
             const h=big?42:30; const body=new THREE.Mesh(big?G.bldgBig:G.bldgSm,bodyMat); body.position.y=h/2; grp.add(body);
             const roof=new THREE.Mesh(G.roofFlat,roofMat); roof.position.y=h+1.5; roof.scale.set(big?1:0.72,1,big?1:0.78); grp.add(roof); grp.scale.set(4,4,4); castAll(grp,true); scene.add(grp);
@@ -1063,7 +1065,7 @@
                 let boom=r.dist>=(r.maxDist||ROCKET_MAXDIST)||r.y<terrainH(r.x,r.z);
                 if(!boom) for(const o of OBSTACLES){ if((r.x-o.x)**2+(r.z-o.z)**2<(o.r+ROCKET_R)**2){ boom=true; break; } }
                 if(!boom) for(const p of players){ if(p.team===r.team||p.tag>0) continue; if((r.x-p.x)**2+(r.z-p.z)**2<(PLAYER_R+ROCKET_R)**2){ boom=true; break; } }
-                if(boom){ if(r===camRocket){ const iy=terrainH(r.x,r.z); camGlide={x:camera.position.x,y:camera.position.y,z:camera.position.z,vx:r.vx*0.85,vz:r.vz*0.85,ix:r.x,iy:iy+6,iz:r.z,t:0,dur:r.tankCam?0.5:1.5}; camRocket=null; } explodeRocket(r.x,r.y,r.z,r.team,r.owner); removeRocket(i); } }
+                if(boom){ if(r===camRocket){ const iy=terrainH(r.x,r.z); camGlide={x:camera.position.x,y:camera.position.y,z:camera.position.z,vx:r.vx*0.85,vz:r.vz*0.85,ix:r.x,iy:iy+6,iz:r.z,t:0,dur:r.tankCam?0.5:0.75}; camRocket=null; } explodeRocket(r.x,r.y,r.z,r.team,r.owner); removeRocket(i); } }
             updateAirstrikes(dt); updateBuild(dt); updateTurrets(dt);
             if(viewMode==='fpv'){ fpvTimer-=dt; if(fpvTimer<=0||!fpvBullet||bullets.indexOf(fpvBullet)===-1){ viewMode='third'; fpvBullet=null; } }
             for(const pk of pickups){ if(pk.taken) continue; pk.grp.rotation.y+=dt*1.1; pk.grp.position.y=pk.y+11+Math.sin(timeNow*2)*2;
