@@ -91,9 +91,11 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
 - **Enemy look:** the enemy team is unmistakable — **black kit with red armbands** (helmet band, chest patch and arm bands all red), versus your camo. Works whichever side you pick.
 - **Enemy force ×10:** the defending team now fields **30 soldiers** from the start and reinforces up to **70** as you near their flag — a real horde to fight through.
 - **Drone (collect 3 in the field; switch to it in Inventory I, key 5):** a single-use
-  quadcopter you pilot — **WASD fly, look up/down to climb/dive, Shift up / C down**, camera
-  behind & above. **20 s battery**, then it dies, falls and explodes. **FIRE detonates it**
-  (kamikaze); flying into the ground, a tree/building or an enemy also detonates it.
+  quadcopter you pilot — **WASD flies level** (forward/back/strafe relative to heading,
+  unaffected by where you look); **climb/dive with `]` (up) / `\` (down)** on keyboard, or the
+  **right thumb** (slide up/down) on touch. Camera behind & above. **20 s battery**, then it
+  dies, falls and explodes. **FIRE detonates it** (kamikaze); flying into the ground, a
+  tree/building or an enemy also detonates it.
 
 ## Economy — gems & the base shop (per-match)
 - **Gems** are a single, simple currency the **human player only** earns and spends (bots

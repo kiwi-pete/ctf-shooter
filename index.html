@@ -766,16 +766,17 @@
             human.drones--; human.inDrone=true; closeInventory(); firing=false;   // clear the launch click so it doesn't instantly detonate
             drone.active=true; drone.dead=false; drone.battery=DRONE_BATTERY; drone.yaw=human.yaw;
             drone.x=human.x; drone.z=human.z; drone.y=terrainH(human.x,human.z)+46; drone.vx=drone.vz=drone.vy=0; drone.mesh.visible=true;
-            toast('🚁 Drone — WASD fly (look up/down to climb/dive) · Shift up / C down · FIRE = detonate · 20s battery'); }
+            toast('🚁 Drone — WASD fly level · ] up / \\ down (right thumb on touch) · FIRE = detonate · 20s battery'); }
         function detonateDrone(){ if(!drone.active) return; explodeRocket(drone.x,drone.y,drone.z,human.team,human);
             drone.active=false; drone.mesh.visible=false; human.inDrone=false; human.vx=human.vz=human.vy=0; human.airborne=false; }
         function updateDrone(dt){ const D=drone; if(human.tag>0){ detonateDrone(); return; }
             if(firing){ detonateDrone(); return; }   // FIRE = kamikaze / detonate now
             D.battery-=dt; if(D.battery<=0){ if(!D.dead){ D.dead=true; toast('🔋 Battery dead — drone going down!'); } }
-            if(!D.dead){ D.yaw=human.yaw; const cp=Math.cos(human.pitch),sp=Math.sin(human.pitch);
-                const fx=Math.sin(D.yaw)*cp, fyv=sp, fz=Math.cos(D.yaw)*cp, rx=-Math.cos(D.yaw), rz=Math.sin(D.yaw);
-                const inF=((keys.f?1:0)-(keys.b?1:0))-touchMove.y, inR=((keys.r?1:0)-(keys.l?1:0))+touchMove.x, inUp=((keys.up?1:0)-(keys.down?1:0));
-                const tvx=fx*inF*DRONE_SPEED+rx*inR*DRONE_SPEED, tvz=fz*inF*DRONE_SPEED+rz*inR*DRONE_SPEED, tvy=fyv*inF*DRONE_SPEED+inUp*DRONE_VERT;
+            if(!D.dead){ D.yaw=human.yaw;
+                const fx=Math.sin(D.yaw), fz=Math.cos(D.yaw), rx=-Math.cos(D.yaw), rz=Math.sin(D.yaw);   // forward/strafe stay horizontal regardless of look pitch
+                const inF=((keys.f?1:0)-(keys.b?1:0))-touchMove.y, inR=((keys.r?1:0)-(keys.l?1:0))+touchMove.x;
+                const inUp=Math.max(-1,Math.min(1,((keys.up?1:0)-(keys.down?1:0))+touchVert));   // climb/dive: ] / \ on keyboard, right thumb on touch
+                const tvx=fx*inF*DRONE_SPEED+rx*inR*DRONE_SPEED, tvz=fz*inF*DRONE_SPEED+rz*inR*DRONE_SPEED, tvy=inUp*DRONE_VERT;
                 const k=Math.min(1,dt*4); D.vx+=(tvx-D.vx)*k; D.vy+=(tvy-D.vy)*k; D.vz+=(tvz-D.vz)*k;
             } else { D.vy-=GRAVITY*dt; D.vx*=0.99; D.vz*=0.99; }
             D.x+=D.vx*dt; D.y+=D.vy*dt; D.z+=D.vz*dt; clampToIsland(D,4);
@@ -883,7 +884,7 @@
         let running=false, gameOver=false, viewMode='third', fpvBullet=null, fpvTimer=0, inventoryOpen=false;
         let playerTeam='blue', enemyTeam='red';   // 'blue' = north (top), 'red' (shown as GREEN) = south (bottom) — chosen on the start screen
         let gems=0, nearArmoury=false; const SHOP={ helmet:false, boots:false, rapid:false };   // per-match wallet + purchases (human only)
-        const touchMove={x:0,y:0};
+        const touchMove={x:0,y:0}; let touchVert=0;   // touchVert: drone climb/dive throttle from the right thumb
         const elStart=document.getElementById('overlay-start'), elPause=document.getElementById('overlay-pause'), elWin=document.getElementById('overlay-win');
         if(isTouch){ document.body.classList.add('touch'); }
 
@@ -945,6 +946,8 @@
             case 'KeyR': if(down){ if(running&&human&&human.tag<=0&&!gDown){ gDown=true; fireRocket(human); } } else gDown=false; break;
             case 'KeyC': keys.down=down; if(down){ if(running&&human&&!human.inDrone&&!cDown){ cDown=true; human.crouch=!human.crouch; } } else cDown=false; break;
             case 'ShiftLeft': case 'ShiftRight': keys.up=down; if(down){ if(running&&human&&!human.inDrone&&!jDown){ jDown=true; jump(); } } else jDown=false; break;
+            case 'BracketRight': keys.up=down; break;   // ] — drone climb
+            case 'Backslash': keys.down=down; break;     // \ — drone dive
             case 'KeyM': if(down){ if(running&&human&&human.hasMG&&!mDown){ mDown=true; human.weapon=(human.weapon==='mg'?'pistol':'mg'); } } else mDown=false; break;
             case 'KeyE': if(down){ if(!eDown){ eDown=true; toggleCar(); } } else eDown=false; break;
             case 'KeyB': if(down){ if(running&&!bDown){ bDown=true; callAirstrike(); } } else bDown=false; break;
@@ -959,7 +962,7 @@
             case 'Digit9': case 'Numpad9': if(down) buyItem('rapid'); break;
             default: return; } e.preventDefault(); }
         addEventListener('keydown', e=>key(e,true)); addEventListener('keyup', e=>key(e,false));
-        addEventListener('blur', ()=>{ keys.f=keys.b=keys.l=keys.r=false; firing=false; gDown=false; spaceDown=false; cDown=false; jDown=false; });
+        addEventListener('blur', ()=>{ keys.f=keys.b=keys.l=keys.r=keys.up=keys.down=false; firing=false; gDown=false; spaceDown=false; cDown=false; jDown=false; touchVert=0; });
         const elDamage=document.getElementById('damage'); let damageTimer=0; function flashDamage(){ elDamage.classList.add('on'); damageTimer=0.45; }
         const elToast=document.getElementById('toast'); let toastTimer=0; function toast(msg){ elToast.textContent=msg; elToast.classList.add('on'); toastTimer=2.6; }
         document.getElementById('btn-restart').addEventListener('click', ev=>{ ev.stopPropagation(); resetMatch(); });
@@ -982,10 +985,13 @@
             moveZone.addEventListener('pointermove', e=>{ if(e.pointerId!==movePtr) return; setKnob(e.clientX,e.clientY); });
             function endMove(e){ if(e.pointerId!==movePtr) return; movePtr=null; touchMove.x=0; touchMove.y=0; base.style.display='none'; }
             moveZone.addEventListener('pointerup',endMove); moveZone.addEventListener('pointercancel',endMove);
-            lookZone.addEventListener('pointerdown', e=>{ if(lookPtr!==null) return; lookPtr=e.pointerId; lookLast={x:e.clientX,y:e.clientY}; try{lookZone.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
+            let lookStart={x:0,y:0};
+            lookZone.addEventListener('pointerdown', e=>{ if(lookPtr!==null) return; lookPtr=e.pointerId; lookLast={x:e.clientX,y:e.clientY}; lookStart={x:e.clientX,y:e.clientY}; try{lookZone.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
             lookZone.addEventListener('pointermove', e=>{ if(e.pointerId!==lookPtr||!human) return; const dx=e.clientX-lookLast.x,dy=e.clientY-lookLast.y; lookLast={x:e.clientX,y:e.clientY}; const ms=(human.weapon==='mg')?0.5:1;
-                human.yaw-=dx*0.005*ms; human.pitch-=dy*0.005*ms; human.pitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,human.pitch)); });
-            function endLook(e){ if(e.pointerId!==lookPtr) return; lookPtr=null; }
+                human.yaw-=dx*0.005*ms;
+                if(human.inDrone){ touchVert=Math.max(-1,Math.min(1,(lookStart.y-e.clientY)/110)); }   // right thumb above/below its start = climb/dive
+                else { human.pitch-=dy*0.005*ms; human.pitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,human.pitch)); } });
+            function endLook(e){ if(e.pointerId!==lookPtr) return; lookPtr=null; touchVert=0; }
             lookZone.addEventListener('pointerup',endLook); lookZone.addEventListener('pointercancel',endLook);
             function bind(id,onDown,onUp){ const el=document.getElementById(id);
                 el.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); el.classList.add('press'); onDown&&onDown(); });
