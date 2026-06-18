@@ -332,9 +332,17 @@
             trunk:new THREE.CylinderGeometry(1.6,2.4,16,12), canopy:new THREE.ConeGeometry(9,18,16), canopy2:new THREE.ConeGeometry(6.5,12,16), palmTop:new THREE.SphereGeometry(6,16,12),
             baseDisc:new THREE.CylinderGeometry(BASE_R,BASE_R,1.4,48), baseRing:new THREE.TorusGeometry(BASE_R,2.4,16,80), pole:new THREE.CylinderGeometry(0.8,0.8,36,12), cloth:new THREE.BoxGeometry(16,11,0.7),
             blob:new THREE.CircleGeometry(PLAYER_R+3.5,24), bullet:new THREE.ConeGeometry(1.9,9,12), rktBody:new THREE.CylinderGeometry(2.4,2.4,12,16), rktNose:new THREE.ConeGeometry(2.9,6,16),
-            boot:new THREE.BoxGeometry(4,3.5,5.5), leg:new THREE.BoxGeometry(3.8,9,4), hips:new THREE.BoxGeometry(11,4,7), torso:new THREE.BoxGeometry(12,11,7.5), vest:new THREE.BoxGeometry(12.8,9,8.4),
-            patch:new THREE.BoxGeometry(4,4,0.6), pack:new THREE.BoxGeometry(8,9,4), arm:new THREE.BoxGeometry(3.2,10,3.2), neck:new THREE.BoxGeometry(3.5,2.5,3.5),
-            head:new THREE.BoxGeometry(6.4,6.6,6.2), face:new THREE.BoxGeometry(5,2.3,0.8), helmet:new THREE.SphereGeometry(4.3,20,14), hband:new THREE.TorusGeometry(4.0,0.7,12,28),
+            hips:new THREE.BoxGeometry(11,4,7), torso:new THREE.BoxGeometry(12,11,7.5), vest:new THREE.BoxGeometry(12.4,9,8.6), patch:new THREE.BoxGeometry(4,4,0.6), pack:new THREE.BoxGeometry(8,9,4),
+            // --- articulated human soldier: limbs, joints, hands & face ---
+            thigh:new THREE.CylinderGeometry(2.4,1.9,6,12), shin:new THREE.CylinderGeometry(1.9,1.45,5.2,12), knee:new THREE.SphereGeometry(2.0,12,10),
+            bootSole:new THREE.BoxGeometry(4.4,1.4,8.6), bootUpper:new THREE.BoxGeometry(4,3.0,5), bootToe:new THREE.BoxGeometry(3.8,1.9,2.8),
+            abdomen:new THREE.CylinderGeometry(4.6,4.0,5,12), belt:new THREE.CylinderGeometry(4.9,4.9,1.8,14), collar:new THREE.CylinderGeometry(2.9,3.4,2.0,12),
+            deltoid:new THREE.SphereGeometry(2.7,12,10), upperArm:new THREE.CylinderGeometry(2.2,1.8,6,12), forearm:new THREE.CylinderGeometry(1.8,1.45,5.2,12),
+            elbow:new THREE.SphereGeometry(1.7,12,10), cuff:new THREE.CylinderGeometry(1.7,1.95,1.4,12),
+            palm:new THREE.BoxGeometry(2.7,1.5,3.0), finger:new THREE.BoxGeometry(0.66,1.5,0.95), thumb:new THREE.BoxGeometry(1.5,0.95,0.95),
+            neck:new THREE.CylinderGeometry(1.9,2.2,3.0,12), head:new THREE.SphereGeometry(3.5,18,16), jaw:new THREE.BoxGeometry(4.2,3.0,4.2),
+            nose:new THREE.BoxGeometry(1.0,1.5,1.2), ear:new THREE.BoxGeometry(0.7,1.8,1.6), eye:new THREE.BoxGeometry(0.95,0.85,0.4),
+            helmet:new THREE.SphereGeometry(4.3,20,14), hband:new THREE.TorusGeometry(4.0,0.7,12,28),
             gunBody:new THREE.BoxGeometry(2.4,2.6,13), gunBarrel:new THREE.CylinderGeometry(0.6,0.6,9,12), gunMag:new THREE.BoxGeometry(1.8,4.5,2.2), gunStock:new THREE.BoxGeometry(2,3,4),
             launchTube:new THREE.CylinderGeometry(3,3,24,20), launchWar:new THREE.ConeGeometry(3.3,7,18), launchGrip:new THREE.BoxGeometry(1.8,4,2.2), launchSight:new THREE.BoxGeometry(1.2,2.4,1.2),
             mgBody:new THREE.BoxGeometry(3.6,3.6,17), mgBarrel:new THREE.CylinderGeometry(0.7,0.7,12,14), mgRecv:new THREE.BoxGeometry(3.2,4.2,6), mgAmmo:new THREE.BoxGeometry(5,5,6), mgBelt:new THREE.BoxGeometry(8,1.3,2.6),
@@ -544,20 +552,54 @@
         villageCenters.forEach(vc=>buildArmoury(vc.x,vc.z));
 
         // ===================== SOLDIER =====================
-        function buildCharacter(team){ const grp=new THREE.Group(); const acc=teamAccent(team);
-            function legGrp(side){ const lg=new THREE.Group(); lg.position.set(side*2.6,10,0); const t=new THREE.Mesh(G.leg,M.uniformDk); t.position.y=-4.5; lg.add(t); const bt=new THREE.Mesh(G.boot,M.dark); bt.position.set(0,-10.2,0.6); lg.add(bt); grp.add(lg); return lg; }
+        // a gripping hand: square palm, four curled fingers and an opposed thumb (skin)
+        function buildHand(side){ const h=new THREE.Group();
+            h.add(new THREE.Mesh(G.palm,M.skin));
+            for(let i=0;i<4;i++){ const f=new THREE.Mesh(G.finger,M.skin); f.position.set((i-1.5)*0.72,-0.15,1.55); f.rotation.x=1.0; h.add(f); }
+            const th=new THREE.Mesh(G.thumb,M.skin); th.position.set(side*-1.3,0.2,0.4); th.rotation.set(0.4,0,side*0.5); h.add(th);
+            return h; }
+        function buildCharacter(team){ const grp=new THREE.Group(); const acc=teamAccent(team); const tiny=[];
+            // leg: thigh → knee → shin → laced boot (sole, upper, toe); the whole group swings for the walk cycle
+            function legGrp(side){ const lg=new THREE.Group(); lg.position.set(side*2.6,10,0);
+                const th=new THREE.Mesh(G.thigh,M.uniform); th.position.y=-3; lg.add(th);
+                const kn=new THREE.Mesh(G.knee,M.uniformDk); kn.position.y=-6; lg.add(kn); tiny.push(kn);
+                const sh=new THREE.Mesh(G.shin,M.uniformDk); sh.position.y=-8.4; lg.add(sh);
+                const boot=new THREE.Group(); boot.position.set(0,-10.9,0.4); lg.add(boot);
+                const sole=new THREE.Mesh(G.bootSole,M.dark); sole.position.set(0,-0.3,0.6); boot.add(sole);
+                const bup=new THREE.Mesh(G.bootUpper,M.dark); bup.position.set(0,0.9,-0.8); boot.add(bup);
+                const toe=new THREE.Mesh(G.bootToe,M.dark); toe.position.set(0,-0.1,3.0); boot.add(toe);
+                grp.add(lg); return lg; }
             const legL=legGrp(-1),legR=legGrp(1);
             const hips=new THREE.Mesh(G.hips,M.uniformDk); hips.position.y=11; grp.add(hips);
-            const torso=new THREE.Mesh(G.torso,M.uniform); torso.position.y=18.5; grp.add(torso);
-            const vest=new THREE.Mesh(G.vest,M.vest); vest.position.set(0,18,0.2); grp.add(vest);
-            const patch=new THREE.Mesh(G.patch,acc); patch.position.set(0,20,4.3); grp.add(patch);
+            const waist=new THREE.Mesh(G.belt,M.dark); waist.position.y=12.8; waist.scale.set(1,1,0.74); grp.add(waist);
+            const abdomen=new THREE.Mesh(G.abdomen,M.uniform); abdomen.position.y=14.2; abdomen.scale.set(1,1,0.72); grp.add(abdomen);
+            const torso=new THREE.Mesh(G.torso,M.uniform); torso.position.y=18.8; grp.add(torso);
+            const vest=new THREE.Mesh(G.vest,M.vest); vest.position.set(0,18.4,0.2); grp.add(vest);
+            const patch=new THREE.Mesh(G.patch,acc); patch.position.set(0,20,4.5); grp.add(patch);
             const pack=new THREE.Mesh(G.pack,M.uniformDk); pack.position.set(0,18.5,-5.2); grp.add(pack);
+            const collar=new THREE.Mesh(G.collar,M.uniformDk); collar.position.y=23.4; grp.add(collar);
             const neck=new THREE.Mesh(G.neck,M.skin); neck.position.y=24.4; grp.add(neck);
-            const head=new THREE.Mesh(G.head,M.skin); head.position.y=28.4; grp.add(head);
-            const face=new THREE.Mesh(G.face,M.dark); face.position.set(0,28.8,3.1); grp.add(face);
+            // rounded head with a real face — eyes, nose, ears, jaw ride along as children so they hide/move with it
+            const head=new THREE.Mesh(G.head,M.skin); head.position.y=28.4; head.scale.set(1.0,1.12,1.02); grp.add(head);
+            const jaw=new THREE.Mesh(G.jaw,M.skin); jaw.position.set(0,-2.5,0.6); jaw.scale.set(0.9,0.78,0.82); head.add(jaw);
+            const nose=new THREE.Mesh(G.nose,M.skin); nose.position.set(0,-1.9,3.0); head.add(nose); tiny.push(nose);
+            const earL=new THREE.Mesh(G.ear,M.skin); earL.position.set(-3.25,-1.0,-0.2); head.add(earL); tiny.push(earL);
+            const earR=earL.clone(); earR.position.x=3.25; head.add(earR); tiny.push(earR);
+            const eyeL=new THREE.Mesh(G.eye,M.dark); eyeL.position.set(-1.3,-1.2,3.05); head.add(eyeL); tiny.push(eyeL);
+            const eyeR=eyeL.clone(); eyeR.position.x=1.3; head.add(eyeR); tiny.push(eyeR);
             const helmet=new THREE.Mesh(G.helmet,M.helmet); helmet.position.y=30.7; helmet.scale.set(1.18,0.95,1.18); grp.add(helmet);
             const hband=new THREE.Mesh(G.hband,acc); hband.rotation.x=Math.PI/2; hband.position.y=29.6; hband.scale.set(1.22,1.22,1); grp.add(hband);
-            function armGrp(side){ const a=new THREE.Group(); a.position.set(side*7.4,23,0.5); a.rotation.x=-1.15; const u=new THREE.Mesh(G.arm,M.uniform); u.position.y=-4.5; a.add(u); const band=new THREE.Mesh(G.patch,acc); band.scale.set(0.95,0.7,1.6); band.position.set(0,-1.5,0); a.add(band); grp.add(a); return a; }
+            // arm: rounded shoulder → upper arm → elbow → forearm (angled inward) → gloveless gripping hand
+            function armGrp(side){ const a=new THREE.Group(); a.position.set(side*6.4,23.2,0.6); a.rotation.x=-1.15;
+                const delt=new THREE.Mesh(G.deltoid,M.uniform); delt.position.set(side*0.5,0.5,0); a.add(delt);
+                const u=new THREE.Mesh(G.upperArm,M.uniform); u.position.y=-3; a.add(u);
+                const band=new THREE.Mesh(G.patch,acc); band.scale.set(1.05,0.7,1.6); band.position.set(0,-1.2,0); a.add(band); tiny.push(band);
+                const el=new THREE.Mesh(G.elbow,M.uniform); el.position.y=-6; a.add(el); tiny.push(el);
+                const fore=new THREE.Group(); fore.position.set(0,-6,0); fore.rotation.set(0.3,0,-side*0.26); a.add(fore);
+                const f=new THREE.Mesh(G.forearm,M.uniform); f.position.y=-2.6; fore.add(f);
+                const cuff=new THREE.Mesh(G.cuff,M.uniformDk); cuff.position.y=-5.0; fore.add(cuff); tiny.push(cuff);
+                const hand=buildHand(side); hand.position.set(0,-6.0,0.4); hand.rotation.x=0.5; fore.add(hand); tiny.push(hand);
+                grp.add(a); return a; }
             const armL=armGrp(-1),armR=armGrp(1);
             const gun=new THREE.Group(); gun.position.set(2.2,15.5,7);
             gun.add(new THREE.Mesh(G.gunBody,M.gun)); const bar=new THREE.Mesh(G.gunBarrel,M.gun); bar.rotation.x=Math.PI/2; bar.position.set(0,0.6,9); gun.add(bar);
@@ -579,8 +621,9 @@
             const hpBg=new THREE.Sprite(new THREE.SpriteMaterial({map:WHITE_TEX,color:0x0e1422,transparent:true,depthTest:true})); hpBg.scale.set(25,3.4,1); hpBg.position.y=40; grp.add(hpBg);
             const hpFill=new THREE.Sprite(new THREE.SpriteMaterial({map:WHITE_TEX,color:0x46d65f,depthTest:true})); hpFill.scale.set(23,2.2,1); hpFill.position.set(0,40,0); grp.add(hpFill);
             const arFill=new THREE.Sprite(new THREE.SpriteMaterial({map:WHITE_TEX,color:0x5bb8ff,depthTest:true})); arFill.scale.set(0.001,1.3,1); arFill.position.set(0,42.7,0); grp.add(arFill);
-            castAll(grp,false); scene.add(grp); const blob=new THREE.Mesh(G.blob,M.blob); blob.rotation.x=-Math.PI/2; scene.add(blob);
-            grp._legs=[legL,legR]; grp._blob=blob; grp._gun=gun; grp._mg=mgun; grp._arms=[armL,armR]; grp._hpBg=hpBg; grp._hpFill=hpFill; grp._arFill=arFill; grp._body=[hips,torso,vest,patch,pack,neck,head,face,helmet,hband,legL,legR,launcher];
+            castAll(grp,false); tiny.forEach(m=>m.traverse(n=>{ n.castShadow=false; }));   // keep the small detail (hands, eyes, joints) out of the shadow pass for speed
+            scene.add(grp); const blob=new THREE.Mesh(G.blob,M.blob); blob.rotation.x=-Math.PI/2; scene.add(blob);
+            grp._legs=[legL,legR]; grp._blob=blob; grp._gun=gun; grp._mg=mgun; grp._arms=[armL,armR]; grp._hpBg=hpBg; grp._hpFill=hpFill; grp._arFill=arFill; grp._body=[hips,waist,abdomen,torso,vest,patch,pack,collar,neck,head,helmet,hband,legL,legR,launcher];
             grp._helmet=helmet; grp._helmetBaseMat=helmet.material; grp._combat=null;   // combat-helmet cosmetic (Combat Helmet upgrade) attaches/detaches here
             return grp;
         }
