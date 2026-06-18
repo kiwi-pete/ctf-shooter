@@ -458,9 +458,9 @@
             houses.push({x:x,z:z,s:s,hgt:0.85+(seed%5)*0.22,yaw:(seed%4)*(Math.PI/2)+((seed%7)-3)*0.07,col:HOUSE_COLS[seed%HOUSE_COLS.length]});
             OBSTACLES.push({x:x,z:z,r:5.2*s}); }
         function plantTree(x,z,palm,parent){ const y=terrainH(x,z); const host=parent||scene; const TS=TREE_SCALE;
-            const trunk=new THREE.Mesh(G.trunk,M.trunk); trunk.position.set(x,y+9.6*TS,z); trunk.scale.set(TS,TS*1.2,TS); trunk.castShadow=true; host.add(trunk);
-            if(palm){ const top=new THREE.Mesh(G.palmTop,M.leaf); top.position.set(x,y+20*TS,z); top.scale.set(1.6*TS,0.8*TS,1.6*TS); top.castShadow=true; host.add(top); }
-            else { const c1=new THREE.Mesh(G.canopy,M.leaf); c1.position.set(x,y+25*TS,z); c1.scale.set(TS,TS,TS); c1.castShadow=true; host.add(c1); const c2=new THREE.Mesh(G.canopy2,M.leafDk); c2.position.set(x,y+33*TS,z); c2.scale.set(TS,TS,TS); host.add(c2); } }
+            const trunk=new THREE.Mesh(G.trunk,M.trunk); trunk.position.set(x,y+11.5*TS,z); trunk.scale.set(TS,TS*1.44,TS); trunk.castShadow=true; host.add(trunk);
+            if(palm){ const top=new THREE.Mesh(G.palmTop,M.leaf); top.position.set(x,y+24*TS,z); top.scale.set(1.6*TS,0.8*TS,1.6*TS); top.castShadow=true; host.add(top); }
+            else { const c1=new THREE.Mesh(G.canopy,M.leaf); c1.position.set(x,y+29*TS,z); c1.scale.set(TS,TS,TS); c1.castShadow=true; host.add(c1); const c2=new THREE.Mesh(G.canopy2,M.leafDk); c2.position.set(x,y+37*TS,z); c2.scale.set(TS,TS,TS); host.add(c2); } }
         function plantForest(cx,cz,radius,count,seed){ for(let i=0;i<count;i++){ const a=(i*2.39996+seed),r=radius*Math.sqrt(((i*97+seed*13)%100)/100),x=cx+Math.cos(a)*r,z=cz+Math.sin(a)*r;
             if(!pointInIsland(x,z)) continue; plantTree(x,z,false); OBSTACLES.push({x:x,z:z,r:9}); } }
         // a real village: a grid of 4x-scale houses with walkable street gaps + per-building collision
@@ -494,7 +494,7 @@
                 const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),p=new THREE.Vector3(),sc=new THREE.Vector3();
                 for(let i=0;i<list.length;i++){ const t=list[i],y=terrainH(t.x,t.z); q.setFromAxisAngle(up,(t.x*0.13+t.z*0.07)%6.283); p.set(t.x,y+oy*t.s,t.z); sc.set(sxz*t.s,sy*t.s,sxz*t.s); mtx.compose(p,q,sc); im.setMatrixAt(i,mtx); }
                 im.instanceMatrix.needsUpdate=true; scene.add(im); }
-            build(G.trunk,M.trunk,all,9.6,1,1.2); build(G.canopy,M.leaf,leafy,25,1,1); build(G.canopy2,M.leafDk,leafy,33,1,1); build(G.palmTop,M.leaf,palms,20,1.6,0.8); }
+            build(G.trunk,M.trunk,all,11.5,1,1.44); build(G.canopy,M.leaf,leafy,29,1,1); build(G.canopy2,M.leafDk,leafy,37,1,1); build(G.palmTop,M.leaf,palms,24,1.6,0.8); }
         function buildRock(nx,nz){ const pos=settleInside(toWorld(nx,nz),PLAYER_R+4),y=terrainH(pos.x,pos.z); const grp=new THREE.Group(); grp.position.set(pos.x,y,pos.z);
             const mat=M.rock.clone(); for(let i=0;i<3;i++){ const m=new THREE.Mesh(G.rock,mat),s=0.7+i*0.45; m.scale.set(s,s*0.75,s); m.position.set((i-1)*6,4*s,(i%2)*5-2); m.rotation.set(i,i*1.7,i*0.6); grp.add(m); } grp.scale.set(3.5,3.5,3.5); castAll(grp,true); scene.add(grp); OBSTACLES.push({x:pos.x,z:pos.z,y:y,r:42,grp:grp,mats:[mat],baseCols:[mat.color.clone()],hp:30,maxhp:30,kind:'rock'}); }
         function buildBase(team,nrm){ const pos=settleInside(toWorld(nrm.xn,nrm.zn),BASE_R+6),y=terrainH(pos.x,pos.z); const grp=new THREE.Group(); grp.position.set(pos.x,y,pos.z);
@@ -509,7 +509,7 @@
         // forest density: a noise field giving dense groves, open clearings and diagonal firebreaks (not a uniform blanket)
         function forestDensity(x,z){ return 0.40 + 0.48*Math.sin(x*0.0011+1.7)*Math.cos(z*0.0010+0.3) + 0.30*Math.sin(x*0.0025-0.5)*Math.cos(z*0.0028+2.1) + 0.20*Math.sin((x*0.7+z)*0.0017+1.1); }
         (function scatterTrees(){ let n=0,guard=0; const TARGET=isTouch?900:1800, LIM=TARGET*22; while(n<TARGET && guard<LIM){ guard++; const x=gx0+Math.random()*BBOX_W,z=gz0+Math.random()*ISLAND_LENGTH; if(!pointInIsland(x,z)) continue;
-            const y=terrainH(x,z); if(y<1.0||y>240) continue; if(Math.hypot(x-_bB.x,z-_bB.z)<170||Math.hypot(x-_rB.x,z-_rB.z)<170) continue;
+            const y=terrainH(x,z); if(y<1.0||y>240) continue; if(Math.hypot(x-_bB.x,z-_bB.z)<420||Math.hypot(x-_rB.x,z-_rB.z)<420) continue;   // keep a clear, uncrowded spawn apron around each base
             let d=forestDensity(x,z); if(y>160) d*=Math.max(0,1-(y-160)/80);   // treeline: thin going up the slope, BARE summits (no trees above ~240) so you can climb & look across the island
             if(Math.random()>=d) continue;   // patchy: groves vs clearings vs firebreaks
             let nc=false; for(const vc of villageCenters){ const dx=x-vc.x,dz=z-vc.z; if(dx*dx+dz*dz<230*230){ nc=true; break; } } if(nc&&(guard%4)!==0) continue;   // thin trees in town cores, keep streets readable
