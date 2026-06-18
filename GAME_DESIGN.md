@@ -78,6 +78,28 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
   The engine **overheats after 20 s of driving** and needs **~18 s to cool** (engine cut
   while it cools). It **rides over the hills** and **launches into the air off steep crests**.
 
+## Economy — gems & the base shop (per-match)
+- **Gems** are a single, simple currency the **human player only** earns and spends (bots
+  stay out of the economy). The current total is always on screen (**💎 top-right**).
+- **Earning:** **collectible gems** (16 emerald octahedra) float around the island —
+  walk over one to bank **+1**, and it instantly **respawns elsewhere** so there's always
+  one to chase. **Tagging an enemy** (bullet or rocket) pays **+3**; **scoring a capture**
+  pays **+10**. So both fighting and objectives feed the wallet.
+- **Spending — village armouries:** every village has an **🛡 ARMOURY** (a sandbagged
+  bunker with a glowing emblem). Walk within ~90 units and a compact **pit-stop shop**
+  panel opens; walk away and it closes — no blocking menu, the match keeps running.
+  Affordable items glow green, anything too expensive is greyed-out and **locked**, and a
+  purchase **takes effect instantly**. Buy with **7 / 8 / 9** (desktop) or **tap** (touch).
+- **The three items** (buy once each, last the rest of the match):
+  1. **Combat Helmet — 💎5 (cheap, cosmetic).** A tactical combat helmet with a radio
+     antenna — makes the soldier look the part, no stat change.
+  2. **Speed Boots — 💎20 (mid).** On-foot move speed ×1.5 — noticeably faster.
+  3. **Rapid Fire — 💎40 (top).** Pistol cooldown 0.4 s → 0.2 s (MG fire-rate also ~1.8×) —
+     noticeably faster shooting.
+- **Reset:** gems and purchases are **per-match only** — they clear on restart (speed,
+  helmet and fire-rate revert, gems zero out, collectibles re-scatter). No saving between
+  sessions yet.
+
 ## Graphics
 - **Real-time shadows** (PCFSoft) from a single sun whose shadow camera **follows the
   player/car** in a tight ±640 box, so a 6000-unit map still gets crisp contact shadows.
@@ -115,3 +137,8 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
   Red flag; **telegraphed, arcing, area-effect enemy rockets**; a pickup-able **belt-fed
   machine gun** (M to switch, half speed/turn, regenerating 20-round burst); **jump &
   crouch**; and full **iPad touch controls** (twin-stick + buttons, tap-to-start).
+- **Increment 3**: a **per-match gem economy** (human only) — **collectible gems** that
+  respawn, plus **+3 per tag** and **+10 per capture**, with a live **💎 counter**; **village
+  armouries** opening a non-blocking **pit-stop shop** with three buy-once upgrades —
+  **Combat Helmet** (💎5, cosmetic), **Speed Boots** (💎20, ×1.5 on foot) and **Rapid Fire**
+  (💎40, faster shooting); everything **resets each match**.

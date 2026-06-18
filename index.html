@@ -37,6 +37,26 @@
         #toast { position:absolute; top:112px; left:50%; transform:translateX(-50%); padding:8px 20px; border-radius:10px; font-weight:700; font-size:16px; color:#fde68a; background:rgba(2,6,23,0.72); border:1px solid rgba(255,255,255,0.15); opacity:0; transition:opacity 0.3s; white-space:nowrap; }
         #toast.on { opacity:1; }
         #air { position:absolute; top:14px; right:14px; padding:6px 12px; border-radius:10px; font-size:12px; font-weight:700; color:#fde68a; background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.07); }
+        #gems { position:absolute; top:48px; right:14px; padding:6px 13px; border-radius:10px; font-size:15px; font-weight:800; color:#6ff0c0; background:rgba(6,28,22,0.55); border:1px solid rgba(110,240,192,0.35); text-shadow:0 0 10px rgba(52,211,153,0.45); }
+        #shop { position:absolute; bottom:96px; left:50%; transform:translateX(-50%); width:330px; padding:12px 14px 10px; border-radius:14px;
+            background:rgba(8,18,16,0.82); border:1px solid rgba(110,240,192,0.4); box-shadow:0 8px 28px rgba(0,0,0,0.45); backdrop-filter:blur(8px); pointer-events:auto; }
+        #shop.hidden { display:none; }
+        #shop .shop-h { font-size:15px; font-weight:800; color:#9af5d0; letter-spacing:1px; text-align:center; margin-bottom:9px; }
+        #shop .shop-h small { font-size:11px; font-weight:600; color:#6b9a8c; letter-spacing:0.5px; }
+        #shop .shop-row { display:flex; align-items:center; gap:9px; padding:7px 9px; margin:5px 0; border-radius:9px; cursor:pointer;
+            background:rgba(15,30,26,0.7); border:1px solid rgba(255,255,255,0.08); transition:border-color 0.12s, background 0.12s; }
+        #shop .si-key { flex:none; width:20px; height:20px; line-height:20px; text-align:center; border-radius:5px; font-size:12px; font-weight:800; color:#0b1220; background:#5b6b63; }
+        #shop .si-name { flex:1; font-size:14px; font-weight:700; color:#e7f4ee; display:flex; flex-direction:column; line-height:1.2; }
+        #shop .si-name small { font-size:10.5px; font-weight:500; color:#86a99c; }
+        #shop .si-cost { flex:none; font-size:13px; font-weight:800; color:#fbbf24; }
+        #shop .shop-row.afford { border-color:rgba(110,240,192,0.65); background:rgba(16,46,38,0.8); }
+        #shop .shop-row.afford .si-key { background:#34d399; }
+        #shop .shop-row.locked { opacity:0.45; cursor:not-allowed; }
+        #shop .shop-row.locked .si-cost { color:#f87171; }
+        #shop .shop-row.owned { opacity:0.7; border-color:rgba(96,165,250,0.5); cursor:default; }
+        #shop .shop-row.owned .si-cost { color:#60a5fa; }
+        #shop .shop-row.owned .si-key { background:#60a5fa; }
+        #shop .shop-hint { margin-top:8px; text-align:center; font-size:11px; color:#7fae9f; }
         #build { position:absolute; top:140px; left:50%; transform:translateX(-50%); padding:6px 16px; border-radius:10px; font-weight:700; font-size:15px; color:#9fd8ff; background:rgba(2,6,23,0.6); border:1px solid rgba(255,255,255,0.15); display:none; }
         #crosshair { position:absolute; top:50%; left:50%; width:22px; height:22px; transform:translate(-50%,-50%); opacity:0.9; }
         #crosshair::before, #crosshair::after { content:''; position:absolute; background:rgba(255,255,255,0.85); box-shadow:0 0 3px rgba(0,0,0,0.6); }
@@ -114,6 +134,8 @@
         <div id="weapon"></div>
         <div id="ammo">🚀 Rocket ready <span class="g">(R)</span></div>
         <div id="air">✈️ 3</div>
+        <div id="gems">💎 0</div>
+        <div id="shop" class="hidden"></div>
         <div id="compass">Heading: <b id="heading">S</b></div>
         <canvas id="minimap" width="120" height="216"></canvas>
         <div id="crosshair"></div>
@@ -176,6 +198,15 @@
         const MAX_HP = 100, BULLET_DMG = 34, ARMOUR_MAX = 100, INV_TIMESCALE = 0.25, AIRSTRIKES = 3, BOMB_BLAST = 120;
         const WALL_TIME = 2.5, PILLBOX_TIME = 5, BUILD_DIST = 30, SNAP_RANGE = 55, TURRET_RANGE = 380, TURRET_CD = 0.7;   // buildable defenses
         const PICKUP_DIST = 18, BASE_R = 44, WIN_SCORE = 3, TAG_TIME = 1.0, FLAG_DROP_TIME = 5.0;
+        // Increment 3 — per-match gem economy + soldier-themed armoury shop (human player only)
+        const GEM_COUNT = 16, GEM_PICK_R = 26, GEM_VALUE = 1, GEM_TAG = 3, GEM_CAPTURE = 10;
+        const ARMOURY_R = 92;   // walk this close to a village armoury to open the pit-stop shop
+        const SHOP_ITEMS = [
+            { key:'helmet', name:'Combat Helmet', cost:5,  blurb:'Look the part',   hot:'7', icon:'🪖' },
+            { key:'boots',  name:'Speed Boots',   cost:20, blurb:'Faster on foot',  hot:'8', icon:'🥾' },
+            { key:'rapid',  name:'Rapid Fire',    cost:40, blurb:'Faster shooting', hot:'9', icon:'🔥' }
+        ];
+        const BOOTS_SPEED_MULT = 1.5, RAPID_PISTOL_CD = 0.2, RAPID_MG_MULT = 0.55;
         const CAM_DIST = 56, CAM_HEIGHT = 64;
         const SENS_YAW = 0.0023, SENS_PITCH = 0.0021, PITCH_MIN = -0.95, PITCH_MAX = 0.95;
         const SEA_Y = -9;
@@ -309,7 +340,9 @@
             mgBody:new THREE.BoxGeometry(3.6,3.6,17), mgBarrel:new THREE.CylinderGeometry(0.7,0.7,12,14), mgRecv:new THREE.BoxGeometry(3.2,4.2,6), mgAmmo:new THREE.BoxGeometry(5,5,6), mgBelt:new THREE.BoxGeometry(8,1.3,2.6),
             bldgBig:new THREE.BoxGeometry(34,42,30), bldgSm:new THREE.BoxGeometry(24,30,24), roofFlat:new THREE.BoxGeometry(37,3,33), armourV:new THREE.BoxGeometry(11,12,5),
             planeFus:new THREE.CylinderGeometry(3,3,30,14), planeWing:new THREE.BoxGeometry(46,1.6,8), planeTail:new THREE.BoxGeometry(14,1.2,5), planeFin:new THREE.BoxGeometry(1.4,7,5), bomb:new THREE.SphereGeometry(3,16,12),
-            wall:new THREE.BoxGeometry(34,26,7), pillBase:new THREE.BoxGeometry(24,30,24), pillRoof:new THREE.BoxGeometry(27,4,27), pillGun:new THREE.BoxGeometry(2.6,2.6,13) };
+            wall:new THREE.BoxGeometry(34,26,7), pillBase:new THREE.BoxGeometry(24,30,24), pillRoof:new THREE.BoxGeometry(27,4,27), pillGun:new THREE.BoxGeometry(2.6,2.6,13),
+            gem:new THREE.OctahedronGeometry(5,0), gogStrap:new THREE.BoxGeometry(8.6,1.8,2.2), antenna:new THREE.CylinderGeometry(0.3,0.3,10,6),
+            armouryBody:new THREE.BoxGeometry(30,20,26), armouryRoof:new THREE.BoxGeometry(34,3,30), sandbag:new THREE.BoxGeometry(7,4,4) };
         const M={ wall:new THREE.MeshLambertMaterial({color:0xefe2c0}), roof:new THREE.MeshLambertMaterial({color:0xb5552f}), rock:new THREE.MeshPhongMaterial({color:0x9aa3ab,shininess:6,flatShading:true}),
             trunk:new THREE.MeshLambertMaterial({color:0x7a5230}), leaf:new THREE.MeshLambertMaterial({color:0x3f9d4f}), leafDk:new THREE.MeshLambertMaterial({color:0x2f7d3c}),
             blob:new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.22,depthWrite:false}), skin:new THREE.MeshLambertMaterial({color:0xe8b48c}), dark:new THREE.MeshLambertMaterial({color:0x23262e}),
@@ -320,7 +353,9 @@
             redRing:new THREE.MeshBasicMaterial({color:0xf87171}), blueRing:new THREE.MeshBasicMaterial({color:0x60a5fa}),
             bulletDark:new THREE.MeshLambertMaterial({color:0x2a2e36}), rktBody:new THREE.MeshLambertMaterial({color:0x55606e}), rktHead:new THREE.MeshLambertMaterial({color:0xffae3b}),
             concrete:new THREE.MeshLambertMaterial({color:0xc2bba8}), concreteDk:new THREE.MeshLambertMaterial({color:0x8f8773}), armour:new THREE.MeshLambertMaterial({color:0x6fa8d6}),
-            ghost:new THREE.MeshLambertMaterial({color:0x8fd0ff,transparent:true,opacity:0.45,depthWrite:false}) };
+            ghost:new THREE.MeshLambertMaterial({color:0x8fd0ff,transparent:true,opacity:0.45,depthWrite:false}),
+            gem:new THREE.MeshPhongMaterial({color:0x34d399,emissive:0x0f766e,shininess:120,specular:0xffffff}), gold:new THREE.MeshPhongMaterial({color:0xf5c542,emissive:0x6b4e00,shininess:90}),
+            armoury:new THREE.MeshLambertMaterial({color:0x6a6f4a}), armouryRoof:new THREE.MeshLambertMaterial({color:0x44492f}) };
         function teamAccent(t){ return t==='red'?M.red:M.blue; }
         const GLOW_TEX=(function(){ const c=document.createElement('canvas'); c.width=c.height=64; const g=c.getContext('2d'); const gr=g.createRadialGradient(32,32,0,32,32,32);
             gr.addColorStop(0,'rgba(255,255,255,1)'); gr.addColorStop(0.4,'rgba(255,255,255,0.6)'); gr.addColorStop(1,'rgba(255,255,255,0)'); g.fillStyle=gr; g.fillRect(0,0,64,64); const tx=new THREE.CanvasTexture(c); tx.encoding=THREE.sRGBEncoding; return tx; })();
@@ -483,6 +518,31 @@
         [[0.46,0.80],[0.50,0.50],[0.52,0.28]].forEach(s=>buildMGPickup(s[0],s[1]));
         [[0.52,0.66],[0.46,0.40],[0.50,0.20]].forEach(s=>buildArmourPickup(s[0],s[1]));
 
+        // ---- collectible gems (human only): walk over to bank one; it respawns elsewhere so there's always one to chase ----
+        const gems3d=[];
+        function randomGemSpot(){ for(let g=0;g<200;g++){ const x=gx0+Math.random()*BBOX_W, z=gz0+Math.random()*ISLAND_LENGTH;
+            if(!pointInIsland(x,z)) continue; const y=terrainH(x,z); if(y<1.6||y>96) continue;
+            if(Math.hypot(x-_bB.x,z-_bB.z)<120||Math.hypot(x-_rB.x,z-_rB.z)<120) continue; return {x:x,z:z,y:y}; }
+            return {x:_bB.x,z:_bB.z+220,y:terrainH(_bB.x,_bB.z+220)}; }
+        function respawnGem(g){ const s=randomGemSpot(); g.x=s.x; g.z=s.z; g.y=s.y; g.grp.position.set(s.x,s.y+14,s.z); }
+        function buildGem(){ const grp=new THREE.Group(); grp.add(new THREE.Mesh(G.gem,M.gem));
+            const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0x6ff0c0,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); glow.scale.set(34,34,1); grp.add(glow);
+            scene.add(grp); const g={grp:grp,x:0,z:0,y:0,phase:Math.random()*6.283}; gems3d.push(g); respawnGem(g); }
+        for(let i=0;i<GEM_COUNT;i++) buildGem();
+
+        // ---- village armouries: walk up to one to open the quick pit-stop shop (one per village) ----
+        const armouries=[];
+        function buildArmoury(cx,cz){ const p=settleInside({x:cx,z:cz},PLAYER_R+6), y=terrainH(p.x,p.z); const grp=new THREE.Group(); grp.position.set(p.x,y,p.z);
+            const body=new THREE.Mesh(G.armouryBody,M.armoury); body.position.y=10; grp.add(body);
+            const roof=new THREE.Mesh(G.armouryRoof,M.armouryRoof); roof.position.y=21.5; grp.add(roof);
+            const door=new THREE.Mesh(new THREE.BoxGeometry(8,13,1),M.dark); door.position.set(0,6.5,13.2); grp.add(door);
+            for(let i=0;i<5;i++){ const sb=new THREE.Mesh(G.sandbag,M.uniformDk); sb.position.set(-15+i*7.5,2,15); sb.rotation.y=i*0.3; grp.add(sb); }
+            const emblem=new THREE.Mesh(G.patch,M.gold); emblem.scale.set(1.5,1.5,1); emblem.position.set(0,30,0); grp.add(emblem);
+            const glow=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:0x9af5d0,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); glow.scale.set(44,44,1); glow.position.y=30; grp.add(glow);
+            const lab=makeLabel('🛡 ARMOURY'); lab.position.set(0,42,0); grp.add(lab); grp.scale.set(1.5,1.5,1.5); castAll(grp,false); scene.add(grp);
+            armouries.push({x:p.x,z:p.z}); }
+        villageCenters.forEach(vc=>buildArmoury(vc.x,vc.z));
+
         // ===================== SOLDIER =====================
         function buildCharacter(team){ const grp=new THREE.Group(); const acc=teamAccent(team);
             function legGrp(side){ const lg=new THREE.Group(); lg.position.set(side*2.6,10,0); const t=new THREE.Mesh(G.leg,M.uniformDk); t.position.y=-4.5; lg.add(t); const bt=new THREE.Mesh(G.boot,M.dark); bt.position.set(0,-10.2,0.6); lg.add(bt); grp.add(lg); return lg; }
@@ -521,6 +581,7 @@
             const arFill=new THREE.Sprite(new THREE.SpriteMaterial({map:WHITE_TEX,color:0x5bb8ff,depthTest:true})); arFill.scale.set(0.001,1.3,1); arFill.position.set(0,42.7,0); grp.add(arFill);
             castAll(grp,false); scene.add(grp); const blob=new THREE.Mesh(G.blob,M.blob); blob.rotation.x=-Math.PI/2; scene.add(blob);
             grp._legs=[legL,legR]; grp._blob=blob; grp._gun=gun; grp._mg=mgun; grp._arms=[armL,armR]; grp._hpBg=hpBg; grp._hpFill=hpFill; grp._arFill=arFill; grp._body=[hips,torso,vest,patch,pack,neck,head,face,helmet,hband,legL,legR,launcher];
+            grp._helmet=helmet; grp._helmetBaseMat=helmet.material; grp._combat=null;   // combat-helmet cosmetic (Combat Helmet upgrade) attaches/detaches here
             return grp;
         }
 
@@ -606,7 +667,7 @@
             const grp=new THREE.Group(); grp.rotation.order='YXZ'; const dart=new THREE.Mesh(G.bullet,M.bulletDark); dart.rotation.x=Math.PI/2; grp.add(dart);   // dark, sharp dart
             const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:shooter.team==='red'?0xff5a45:0x55a8ff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); halo.scale.set(8,8,1); halo.position.z=-3; grp.add(halo); grp.position.set(ox,oy,oz); scene.add(grp);
             shooter.recoil=1;
-            const b={x:ox,z:oz,y:oy,vx:d.x*BULLET_SPEED,vy:d.y*BULLET_SPEED,vz:d.z*BULLET_SPEED,team:shooter.team,dist:0,mesh:grp}; bullets.push(b); spawnEffect(ox,oy,oz,shooter.team==='red'?0xff7b6b:0x7cc0ff,8,3,0.12); sndShoot(posVol(ox,oz,0.5)); return b; }
+            const b={x:ox,z:oz,y:oy,vx:d.x*BULLET_SPEED,vy:d.y*BULLET_SPEED,vz:d.z*BULLET_SPEED,team:shooter.team,owner:shooter,dist:0,mesh:grp}; bullets.push(b); spawnEffect(ox,oy,oz,shooter.team==='red'?0xff7b6b:0x7cc0ff,8,3,0.12); sndShoot(posVol(ox,oz,0.5)); return b; }
         function removeBullet(i){ scene.remove(bullets[i].mesh); bullets[i].mesh.children[1].material.dispose(); bullets.splice(i,1); }
         const rockets=[];
         const turrets=[], builtStructures=[]; let building=null;   // defenses: pillbox turrets + built walls/boxes
@@ -619,11 +680,11 @@
             let vx=d.x*ROCKET_SPEED, vz=d.z*ROCKET_SPEED, vy=d.y*ROCKET_SPEED+ROCKET_VY0;
             if(shooter===human){ const T=crosshairPoint(), dxh=T.x-ox, dzh=T.z-oz, dh=Math.hypot(dxh,dzh), dy=T.y-oy;   // ballistic arc that lands on the crosshair point
                 if(dh>40&&dh<1600){ const t=dh/ROCKET_SPEED; vx=(dxh/dh)*ROCKET_SPEED; vz=(dzh/dh)*ROCKET_SPEED; vy=(dy+0.5*ROCKET_GRAV*t*t)/t; } }
-            const mesh=buildRocketMesh(); mesh.position.set(ox,oy,oz); const rk={x:ox,z:oz,y:oy,vx:vx,vz:vz,vy:vy,team:shooter.team,dist:0,spin:0,mesh:mesh}; rockets.push(rk); if(shooter===human&&!noCam) camRocket=rk; spawnEffect(ox,oy,oz,0xffd27a,12,30,0.18); sndRocketLaunch(posVol(ox,oz,0.72)); rk.snd=makeRocketSound(); if(rk.snd) rk.snd.setVol(posVol(ox,oz,0.6)); return true; }
+            const mesh=buildRocketMesh(); mesh.position.set(ox,oy,oz); const rk={x:ox,z:oz,y:oy,vx:vx,vz:vz,vy:vy,team:shooter.team,owner:shooter,dist:0,spin:0,mesh:mesh}; rockets.push(rk); if(shooter===human&&!noCam) camRocket=rk; spawnEffect(ox,oy,oz,0xffd27a,12,30,0.18); sndRocketLaunch(posVol(ox,oz,0.72)); rk.snd=makeRocketSound(); if(rk.snd) rk.snd.setVol(posVol(ox,oz,0.6)); return true; }
         function removeRocket(i){ if(rockets[i].snd) rockets[i].snd.stop(); scene.remove(rockets[i].mesh); rockets[i].mesh.children[2].material.dispose(); rockets.splice(i,1); }
-        function explodeRocket(x,y,z,team){ sndBoom(boomVol(x,z,0.95),true); spawnEffect(x,y,z,0xffb43c,16,ROCKET_BLAST*2.4,0.55); spawnEffect(x,y,z,0xffe7ad,8,ROCKET_BLAST*1.4,0.34); spawnEffect(x,y,z,0x6b4a2a,12,ROCKET_BLAST*1.9,0.85); spawnEffect(x,y,z,0x3a3a3a,9,ROCKET_BLAST*1.5,1.0);
+        function explodeRocket(x,y,z,team,owner){ sndBoom(boomVol(x,z,0.95),true); spawnEffect(x,y,z,0xffb43c,16,ROCKET_BLAST*2.4,0.55); spawnEffect(x,y,z,0xffe7ad,8,ROCKET_BLAST*1.4,0.34); spawnEffect(x,y,z,0x6b4a2a,12,ROCKET_BLAST*1.9,0.85); spawnEffect(x,y,z,0x3a3a3a,9,ROCKET_BLAST*1.5,1.0);
             deformTerrain(x,z,120,36);
-            for(const p of players){ if(p.team===team||p.tag>0) continue; if((p.x-x)**2+(p.z-z)**2<ROCKET_BLAST**2) p.doTag(); }
+            for(const p of players){ if(p.team===team||p.tag>0) continue; if((p.x-x)**2+(p.z-z)**2<ROCKET_BLAST**2){ p.doTag(); if(owner===human) awardGems(GEM_TAG); } }
             for(const o of OBSTACLES){ const dd=Math.hypot(o.x-x,o.z-z); if(dd<ROCKET_BLAST+o.r) damageObstacle(o, o.built?33:42*Math.max(0.3,1-dd/(ROCKET_BLAST+o.r))); } }   // built defenses: ~4 rockets to destroy
         const effects=[];
         function spawnEffect(x,y,z,color,from,to,life){ if(effects.length>240) return;   // safety cap so dense explosions can't pile up draw calls
@@ -688,16 +749,47 @@
         // ===================== INPUT =====================
         const keys={f:false,b:false,l:false,r:false}; let firing=false, gDown=false, spaceDown=false, cDown=false, jDown=false, mDown=false, iDown=false, bDown=false, eDown=false, key3Held=false;
         let running=false, gameOver=false, viewMode='third', fpvBullet=null, fpvTimer=0, inventoryOpen=false;
+        let gems=0, nearArmoury=false; const SHOP={ helmet:false, boots:false, rapid:false };   // per-match wallet + purchases (human only)
         const touchMove={x:0,y:0};
         const elStart=document.getElementById('overlay-start'), elPause=document.getElementById('overlay-pause'), elWin=document.getElementById('overlay-win');
         if(isTouch){ document.body.classList.add('touch'); document.getElementById('start-pulse').textContent='▶ Tap to play'; }
 
         function jump(){ if(human&&human.tag<=0&&!human.airborne){ human.vy=JUMP_V; human.airborne=true; } }
-        function playerShoot(){ if(human&&human.tag<=0&&human.cooldown<=0){ fireBullet(human); human.cooldown=0.4; } }   // stays in the behind view; bullets go to the crosshair
+        function playerShoot(){ if(human&&human.tag<=0&&human.cooldown<=0){ fireBullet(human); human.cooldown=SHOP.rapid?RAPID_PISTOL_CD:0.4; } }   // Rapid Fire upgrade shortens the cooldown
         function setWeapon(w){ if(!human) return; if(w==='mg'&&!human.hasMG) return; human.weapon=w; closeInventory(); }
         function refreshInv(){ if(!human) return; const ip=document.getElementById('inv-pistol'),im=document.getElementById('inv-mg'); ip.classList.toggle('sel',human.weapon==='pistol'); im.classList.toggle('sel',human.weapon==='mg'); im.classList.toggle('locked',!human.hasMG); }
         function openInventory(){ if(!running||!human) return; inventoryOpen=true; document.getElementById('inventory').classList.remove('hidden'); refreshInv(); }
         function closeInventory(){ inventoryOpen=false; document.getElementById('inventory').classList.add('hidden'); }
+
+        // ---- gem wallet + armoury shop (per-match; bots never earn or spend) ----
+        const elGems=document.getElementById('gems'), elShop=document.getElementById('shop');
+        function awardGems(n){ gems+=n; if(human) spawnEffect(human.x,human.y+BODY_OFF+6,human.z,0x6ff0c0,4,22,0.32); }
+        function shopItem(key){ for(const it of SHOP_ITEMS) if(it.key===key) return it; return null; }
+        function buyItem(key){ if(!running||!human||!nearArmoury) return; if(SHOP[key]) return; const it=shopItem(key); if(!it) return;
+            if(gems<it.cost){ toast('💎 Need '+(it.cost-gems)+' more for '+it.name); return; }
+            gems-=it.cost; SHOP[key]=true;
+            if(key==='helmet'){ applyCombatHelmet(human.mesh); toast('🪖 Combat Helmet equipped!'); }
+            else if(key==='boots'){ human.speed=RUN_SPEED*BOOTS_SPEED_MULT; toast('🥾 Speed Boots — you feel faster!'); }
+            else if(key==='rapid'){ toast('🔥 Rapid Fire — shoot faster!'); }
+            spawnEffect(human.x,human.y+BODY_OFF,human.z,0xffe08a,8,42,0.5); updateShop(); }
+        function applyCombatHelmet(g){ if(!g||g._combat) return; const h=g._helmet; h.material=h.material.clone(); h.material.color.setHex(0x2d3326); h.scale.set(1.3,1.08,1.3);
+            const gog=new THREE.Mesh(G.gogStrap,M.dark); gog.position.set(0,30.1,3.0); g.add(gog);
+            const star=new THREE.Mesh(G.patch,M.gold); star.scale.set(0.55,0.55,0.4); star.position.set(0,31.7,3.4); g.add(star);
+            const ant=new THREE.Mesh(G.antenna,M.dark); ant.position.set(-2.6,35,-2.6); ant.rotation.set(0.18,0,0.12); g.add(ant);
+            g._combat=[gog,star,ant]; }
+        function clearCombatHelmet(g){ if(!g||!g._combat) return; g._combat.forEach(m=>g.remove(m)); g._combat=null;
+            const h=g._helmet; if(h.material!==g._helmetBaseMat){ h.material.dispose(); h.material=g._helmetBaseMat; } h.scale.set(1.18,0.95,1.18); }
+        (function buildShopDOM(){ let html='<div class="shop-h">🛡 ARMOURY <small>quick pit-stop</small></div>';
+            for(const it of SHOP_ITEMS){ html+='<div class="shop-row" id="shop-'+it.key+'">'
+                +'<span class="si-key">'+it.hot+'</span><span class="si-name">'+it.icon+' '+it.name+'<small>'+it.blurb+'</small></span>'
+                +'<span class="si-cost">'+it.cost+' 💎</span></div>'; }
+            html+='<div class="shop-hint">'+(isTouch?'tap an item to buy':'press 7 · 8 · 9 to buy')+'</div>';
+            elShop.innerHTML=html;
+            for(const it of SHOP_ITEMS){ const row=document.getElementById('shop-'+it.key); row.addEventListener('click', ()=>buyItem(it.key)); }
+        })();
+        function updateShop(){ for(const it of SHOP_ITEMS){ const row=document.getElementById('shop-'+it.key); if(!row) continue;
+            const owned=SHOP[it.key], afford=gems>=it.cost; row.classList.toggle('owned',owned); row.classList.toggle('afford',!owned&&afford); row.classList.toggle('locked',!owned&&!afford);
+            row.querySelector('.si-cost').textContent=owned?'OWNED ✓':(it.cost+' 💎'); } }
 
         function goFullscreen(){ const el=document.documentElement, fn=el.requestFullscreen||el.webkitRequestFullscreen||el.webkitRequestFullScreen||el.mozRequestFullScreen; if(fn && !(document.fullscreenElement||document.webkitFullscreenElement)){ try{ const p=fn.call(el); if(p&&p.catch) p.catch(()=>{}); }catch(e){} } }
         function startGame(){ if(gameOver) return; initAudio(); audioResume(); if(isTouch){ goFullscreen(); running=true; elStart.classList.add('hidden'); elPause.classList.add('hidden'); } else { renderer.domElement.requestPointerLock(); } }
@@ -723,6 +815,9 @@
             case 'Digit2': if(down&&inventoryOpen) setWeapon('mg'); break;
             case 'Digit3': if(down){ key3Held=true; if(running){ if(inventoryOpen) closeInventory(); if(!building) startBuild('wall'); } } else key3Held=false; break;
             case 'Digit4': if(down){ if(running){ if(inventoryOpen) closeInventory(); startBuild('pillbox'); } } break;
+            case 'Digit7': case 'Numpad7': if(down) buyItem('helmet'); break;
+            case 'Digit8': case 'Numpad8': if(down) buyItem('boots'); break;
+            case 'Digit9': case 'Numpad9': if(down) buyItem('rapid'); break;
             default: return; } e.preventDefault(); }
         addEventListener('keydown', e=>key(e,true)); addEventListener('keyup', e=>key(e,false));
         addEventListener('blur', ()=>{ keys.f=keys.b=keys.l=keys.r=false; firing=false; gDown=false; spaceDown=false; cDown=false; jDown=false; });
@@ -825,7 +920,7 @@
             if(fl.state==='CARRIED'&&fl.carrier){ fl.mesh.position.set(fl.carrier.x,fl.carrier.y+18,fl.carrier.z); fl.mesh.rotation.y=fl.carrier.yaw; } else { fl.mesh.position.set(fl.x,terrainH(fl.x,fl.z),fl.z); fl.mesh.rotation.y=0; } } }
         function grab(fl,p){ fl.state='CARRIED'; fl.carrier=p; p.carrying=fl; spawnEffect(p.x,p.y+BODY_OFF,p.z,fl.team==='red'?0xff5a45:0x55a8ff,6,30,0.4); }
         function returnHome(fl){ fl.state='HOME'; fl.carrier=null; fl.drop=0; fl.x=fl.home.x; fl.z=fl.home.z; }
-        function capture(c,fl){ score[c.team]++; spawnEffect(BASES[c.team].x,BASES[c.team].y+20,BASES[c.team].z,c.team==='red'?0xff5a45:0x55a8ff,10,90,0.9); c.carrying=null; returnHome(fl); if(score[c.team]>=WIN_SCORE) endMatch(c.team); }
+        function capture(c,fl){ score[c.team]++; spawnEffect(BASES[c.team].x,BASES[c.team].y+20,BASES[c.team].z,c.team==='red'?0xff5a45:0x55a8ff,10,90,0.9); c.carrying=null; returnHome(fl); if(c===human) awardGems(GEM_CAPTURE); if(score[c.team]>=WIN_SCORE) endMatch(c.team); }
 
         // ===================== TICK =====================
         let timeNow=0, dtNow=0;
@@ -839,7 +934,7 @@
                 let inF=((keys.f?1:0)-(keys.b?1:0))-touchMove.y, inR=((keys.r?1:0)-(keys.l?1:0))+touchMove.x;
                 let mx=sy*inF+(-cy)*inR, mz=cy*inF+sy*inR; const l=Math.hypot(mx,mz),spd=human.speed*(human.crouch?CROUCH_SPEED:1)*(human.weapon==='mg'?MG_SPEED_MULT:1);
                 if(l>0.0001){ human.vx=(mx/l)*spd; human.vz=(mz/l)*spd; } else { human.vx=human.vz=0; }
-                if(firing){ if(human.weapon==='mg'){ if(human.mgAmmo>=1&&human.mgFire<=0){ fireBullet(human); human.mgAmmo--; human.mgFire=MG_FIRE_DT; } } else playerShoot(); } }
+                if(firing){ if(human.weapon==='mg'){ if(human.mgAmmo>=1&&human.mgFire<=0){ fireBullet(human); human.mgAmmo--; human.mgFire=MG_FIRE_DT*(SHOP.rapid?RAPID_MG_MULT:1); } } else playerShoot(); } }
             for(const e of players){ if(e.isBot&&e.tag<=0) updateBot(e,dt); }
             for(const e of players){ if(e.tag>0) continue; if(e===human&&human.inCar) continue; e.x+=e.vx*dt; e.z+=e.vz*dt; clampToIsland(e,PLAYER_R+1); collideObstacles(e); clampToIsland(e,PLAYER_R+1); if(!(e===human&&human.airborne)) e.y=terrainH(e.x,e.z); }
             if(human&&human.tag<=0&&human.airborne&&!human.inCar){ human.vy-=GRAVITY*dt; human.y+=human.vy*dt; const gy=terrainH(human.x,human.z); if(human.y<=gy){ human.y=gy; human.vy=0; human.airborne=false; } }
@@ -849,7 +944,7 @@
                 if(b.y<gy){ dead=true; deformTerrain(b.x,b.z,88,2.0); spawnEffect(b.x,gy+1.5,b.z,0xcabfa0,3,18,0.3); spawnEffect(b.x,gy+1.5,b.z,0x8a7d5e,2,11,0.22); spawnEffect(b.x,gy+1,b.z,0x6b5a3a,2,7,0.2); }   // ground impact: dust + dig a bit
                 else if(b.dist>BULLET_RANGE){ dead=true; }
                 if(!dead) for(const o of OBSTACLES){ if((b.x-o.x)**2+(b.z-o.z)**2<(o.r+BULLET_R)**2){ dead=true; spawnEffect(b.x,b.y,b.z,0xdddddd,4,15,0.22); if(!o.built) damageObstacle(o,3); break; } }   // built walls/pillboxes ignore gunfire
-                if(!dead) for(const p of players){ if(p.team===b.team||p.tag>0) continue; if((b.x-p.x)**2+(b.z-p.z)**2<(PLAYER_R+BULLET_R)**2){ hit(p,BULLET_DMG); dead=true; break; } }
+                if(!dead) for(const p of players){ if(p.team===b.team||p.tag>0) continue; if((b.x-p.x)**2+(b.z-p.z)**2<(PLAYER_R+BULLET_R)**2){ hit(p,BULLET_DMG); if(p.tag>0&&b.owner===human) awardGems(GEM_TAG); dead=true; break; } }
                 if(dead) removeBullet(i); }
             for(let i=rockets.length-1;i>=0;i--){ const r=rockets[i]; r.vy-=ROCKET_GRAV*dt; const hstep=Math.hypot(r.vx,r.vz)*dt; r.x+=r.vx*dt; r.y+=r.vy*dt; r.z+=r.vz*dt; r.dist+=hstep; r.spin+=15*dt;
                 // small corkscrew: offset the visible rocket around its flight path (physics path stays smooth)
@@ -859,13 +954,16 @@
                 let boom=r.dist>=ROCKET_MAXDIST||r.y<terrainH(r.x,r.z);
                 if(!boom) for(const o of OBSTACLES){ if((r.x-o.x)**2+(r.z-o.z)**2<(o.r+ROCKET_R)**2){ boom=true; break; } }
                 if(!boom) for(const p of players){ if(p.team===r.team||p.tag>0) continue; if((r.x-p.x)**2+(r.z-p.z)**2<(PLAYER_R+ROCKET_R)**2){ boom=true; break; } }
-                if(boom){ if(r===camRocket){ const iy=terrainH(r.x,r.z); camGlide={x:camera.position.x,y:camera.position.y,z:camera.position.z,vx:r.vx*0.85,vz:r.vz*0.85,ix:r.x,iy:iy+6,iz:r.z,t:0,dur:1.5}; camRocket=null; } explodeRocket(r.x,r.y,r.z,r.team); removeRocket(i); } }
+                if(boom){ if(r===camRocket){ const iy=terrainH(r.x,r.z); camGlide={x:camera.position.x,y:camera.position.y,z:camera.position.z,vx:r.vx*0.85,vz:r.vz*0.85,ix:r.x,iy:iy+6,iz:r.z,t:0,dur:1.5}; camRocket=null; } explodeRocket(r.x,r.y,r.z,r.team,r.owner); removeRocket(i); } }
             updateAirstrikes(dt); updateBuild(dt); updateTurrets(dt);
             if(viewMode==='fpv'){ fpvTimer-=dt; if(fpvTimer<=0||!fpvBullet||bullets.indexOf(fpvBullet)===-1){ viewMode='third'; fpvBullet=null; } }
             for(const pk of pickups){ if(pk.taken) continue; pk.grp.rotation.y+=dt*1.1; pk.grp.position.y=pk.y+11+Math.sin(timeNow*2)*2;
                 if(human&&human.tag<=0&&(human.x-pk.x)**2+(human.z-pk.z)**2<28*28){ pk.taken=true; pk.grp.visible=false;
                     if(pk.type==='armour'){ human.armour=ARMOUR_MAX; toast('🛡️ Armour picked up!'); spawnEffect(human.x,human.y+BODY_OFF,human.z,0x8fd0ff,8,42,0.5); }
                     else { human.hasMG=true; human.weapon='mg'; toast('🔫 Machine gun! M / WPN to switch'); spawnEffect(human.x,human.y+BODY_OFF,human.z,0xffe08a,8,42,0.5); } } }
+            for(const gm of gems3d){ gm.grp.rotation.y+=dt*1.7; gm.grp.position.y=gm.y+14+Math.sin(timeNow*2.2+gm.phase)*2.6;
+                if(human&&human.tag<=0&&(human.x-gm.x)**2+(human.z-gm.z)**2<GEM_PICK_R*GEM_PICK_R){ awardGems(GEM_VALUE); respawnGem(gm); } }
+            nearArmoury=false; if(human&&human.tag<=0&&!human.inCar){ for(const a of armouries){ if((human.x-a.x)**2+(human.z-a.z)**2<ARMOURY_R*ARMOURY_R){ nearArmoury=true; break; } } }
             updateFlags(); updateEffects(dt);
             if(terrainDirty){ terrainGeo.computeVertexNormals(); terrainDirty=false; }
         }
@@ -909,7 +1007,9 @@
                 elAir.textContent='✈️ '+human.airstrikes;
                 if(building){ elBuild.style.display='block'; elBuild.textContent='🔨 '+(building.type==='wall'?'Wall':'Pillbox')+'  '+Math.ceil(building.dur-building.t)+'s'; } else elBuild.style.display='none';
                 const hpc=Math.max(0,Math.round(human.hp)); elHpFill.style.width=hpc+'%'; elHpFill.style.background=hpc>50?'#46d65f':(hpc>25?'#f5c542':'#ef4444'); elArFill.style.width=Math.max(0,Math.round(human.armour))+'%'; elHpLabel.textContent=hpc; }
-            if(human&&human.carrying){ elCarry.style.display='block'; elCarry.style.color='#fca5a5'; elCarry.textContent='🚩 You have the RED flag — run it home to the north!'; } else elCarry.style.display='none'; }
+            if(human&&human.carrying){ elCarry.style.display='block'; elCarry.style.color='#fca5a5'; elCarry.textContent='🚩 You have the RED flag — run it home to the north!'; } else elCarry.style.display='none';
+            elGems.textContent='💎 '+gems;
+            if(nearArmoury&&running){ if(elShop.classList.contains('hidden')) elShop.classList.remove('hidden'); updateShop(); } else if(!elShop.classList.contains('hidden')) elShop.classList.add('hidden'); }
         // ---- minimap (Zanzibar shape, north up): island, hills, bases, flags, you ----
         const mm=document.getElementById('minimap'), mmx=mm.getContext('2d'); const MMW=120,MMH=216,MMP=7;
         function mmPt(xn,zn){ return [MMP+xn*(MMW-2*MMP), MMP+(1-zn)*(MMH-2*MMP)]; }
@@ -943,6 +1043,8 @@
             for(const pk of pickups){ pk.taken=false; pk.grp.visible=true; }
             score.red=0; score.blue=0; returnHome(flags.red); returnHome(flags.blue);
             for(const e of players){ e.x=e.spawn.x; e.z=e.spawn.z; e.y=terrainH(e.x,e.z); e.vx=e.vz=e.vy=0; e.airborne=false; e.crouch=false; e.inCar=false; e.tag=0; e.carrying=null; e.cooldown=0.4+Math.random()*0.6; e.rocketCD=0; e.rocketWind=0; e.hasMG=false; e.weapon='pistol'; e.mgAmmo=MG_MAX; e.hp=MAX_HP; e.armour=0; e.airstrikes=AIRSTRIKES; e.yaw=e.team==='blue'?0:Math.PI; }
+            gems=0; SHOP.helmet=SHOP.boots=SHOP.rapid=false; nearArmoury=false; elShop.classList.add('hidden');   // gems + purchases clear each match (no save between sessions)
+            if(human){ human.speed=RUN_SPEED; clearCombatHelmet(human.mesh); } for(const gm of gems3d) respawnGem(gm);
             assignBuddies(); placeCar();
             if(human) human.pitch=0; viewMode='third'; fpvBullet=null; gameOver=false; running=false; elWin.classList.add('hidden'); elPause.classList.add('hidden'); elStart.classList.remove('hidden'); }
 
@@ -950,7 +1052,9 @@
         setupTeams(); placeCar();
         // player is solid; third-person view sits behind & slightly high, bullets follow the crosshair
         window.FIA={ players, flags, score, bullets, rockets, pickups, planes, bombs, turrets, car, BASES, OBSTACLES, scene, camera, renderer, sun, update, fireBullet, fireRocket, explodeRocket, hit, playerShoot, jump, callAirstrike, openInventory, closeInventory, startBuild, threatLevel, manageDefenders, terrainH, pointInIsland, clampToIsland, ISLAND_POLY, isTouch, toggleCar, assignBuddies, trackSun, drawMinimap, syncMeshes,
-            get human(){return human;}, get running(){return running;}, set running(v){running=v;}, get viewMode(){return viewMode;}, get fpvBullet(){return fpvBullet;}, get touchMove(){return touchMove;}, get inventoryOpen(){return inventoryOpen;}, get building(){return building;}, get camRocket(){return camRocket;} };
+            SHOP, SHOP_ITEMS, gems3d, armouries, buyItem, awardGems,
+            get human(){return human;}, get running(){return running;}, set running(v){running=v;}, get viewMode(){return viewMode;}, get fpvBullet(){return fpvBullet;}, get touchMove(){return touchMove;}, get inventoryOpen(){return inventoryOpen;}, get building(){return building;}, get camRocket(){return camRocket;},
+            get gems(){return gems;}, set gems(v){gems=v;}, get nearArmoury(){return nearArmoury;} };
         let last=0;
         animateSea(0); animateSurf(0);   // seed the water with waves so the menu/pause screens aren't flat (the per-frame sim only runs while playing)
         function loop(t){ if(!last) last=t; let dt=(t-last)/1000; last=t; if(dt>0.05) dt=0.05; if(running&&!gameOver) update(inventoryOpen?dt*INV_TIMESCALE:dt);
