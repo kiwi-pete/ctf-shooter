@@ -1,7 +1,8 @@
 # Fighting Island Arena — Design Log
 
 A cartoonish, kid-friendly **capture-the-flag** shooter set on the island of Unguja
-(Zanzibar). Two teams (Red vs Blue), dodgeable bullets, and "tags" instead of kills
+(Zanzibar). Two teams (Blue north vs Green south — you pick a side on the start
+screen), dodgeable bullets, and "tags" instead of kills
 (no blood/gore — a hit is a tag, not a death). The whole game is a single
 `index.html` plus one vendored library. Plays on **desktop (mouse/keyboard)** and
 **iPad / touch** (on-screen controls). Auto-deploys to **Vercel** on every push to
@@ -31,9 +32,12 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
 **🚀 rocket**, **JUMP**, **DUCK**, **WPN** (weapon switch) and **⏸ pause**.
 
 ## Flag mechanic — A (LOCKED)
-- **Blue flag + Blue base at Nungwi (north).** **Red flag + Red base at the southern
-  end.** Grab the enemy flag, carry it home, touch your base to score — **your own
-  flag must be home**. A tagged carrier drops it (returns after ~5 s). **First to 3 wins.**
+- **Blue flag + Blue base at Nungwi (north). Green flag + Green base at the southern
+  end.** On the **start screen you choose your side — Blue (start at the top) or Green
+  (start at the bottom)** — and the AI takes the other team. Grab the enemy flag, carry
+  it home, touch your base to score — **your own flag must be home**. A tagged carrier
+  drops it (returns after ~5 s). **First to 3 wins.** (Difficulty/reinforcements escalate
+  near whichever flag is the enemy's, so it works from either side.)
 
 ## The map — Unguja (Zanzibar)
 - A **3D heightfield** matching Unguja's coastline (Chwaka Bay / Michamvi peninsula,

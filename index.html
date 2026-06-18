@@ -19,7 +19,7 @@
         #scoreboard { position:absolute; top:14px; left:50%; transform:translateX(-50%); display:flex; align-items:center; gap:18px;
             padding:8px 22px; border-radius:14px; background:rgba(15,23,42,0.62); border:1px solid rgba(255,255,255,0.08);
             backdrop-filter:blur(8px); box-shadow:0 6px 24px rgba(0,0,0,0.35); font-weight:800; font-size:26px; letter-spacing:1px; }
-        #scoreboard .red { color:#f87171; text-shadow:0 0 12px rgba(248,113,113,0.45); }
+        #scoreboard .red { color:#5fcf6a; text-shadow:0 0 12px rgba(95,207,106,0.45); }
         #scoreboard .blue { color:#60a5fa; text-shadow:0 0 12px rgba(96,165,250,0.45); }
         #scoreboard .sep { color:#94a3b8; font-size:18px; font-weight:600; }
         #scoreboard .goal { font-size:11px; font-weight:600; color:#94a3b8; letter-spacing:0.5px; }
@@ -108,6 +108,13 @@
         body.touch .overlay .keys { display:none; }
         .pulse { margin-top:22px; font-size:18px; font-weight:700; color:#fbbf24; animation:blink 1.3s infinite; }
         @keyframes blink { 0%,100%{opacity:0.45;} 50%{opacity:1;} }
+        .teamrow { margin-top:24px; display:flex; gap:18px; pointer-events:auto; }
+        .teambtn { cursor:pointer; border:2px solid; border-radius:14px; padding:16px 26px; font-family:inherit; font-weight:800; font-size:17px; color:#fff; min-width:200px;
+            display:flex; flex-direction:column; gap:3px; transition:transform 0.1s, box-shadow 0.1s; background:rgba(15,23,42,0.6); }
+        .teambtn small { font-size:12px; font-weight:600; opacity:0.85; }
+        .teambtn:hover { transform:translateY(-3px); }
+        .teambtn.blue { border-color:#60a5fa; box-shadow:0 8px 22px rgba(37,99,235,0.4); } .teambtn.blue:hover { background:rgba(37,99,235,0.32); }
+        .teambtn.green { border-color:#5fcf6a; box-shadow:0 8px 22px rgba(58,174,79,0.4); } .teambtn.green:hover { background:rgba(58,174,79,0.32); }
         #btn-restart { margin-top:22px; pointer-events:auto; cursor:pointer; background:linear-gradient(135deg,#2563eb,#1d4ed8); color:#fff; border:none;
             border-radius:10px; padding:14px 34px; font-family:inherit; font-weight:800; font-size:17px; box-shadow:0 6px 18px rgba(37,99,235,0.35); }
         #inventory { position:fixed; inset:0; z-index:16; display:flex; flex-direction:column; justify-content:center; align-items:center; background:rgba(7,11,22,0.30); pointer-events:auto; }
@@ -126,7 +133,7 @@
 <body>
     <div id="app"></div>
     <div id="hud">
-        <div id="scoreboard"><span class="red" id="score-red">0</span><span class="sep">RED&nbsp;·&nbsp;BLUE</span><span class="blue" id="score-blue">0</span><span class="goal">first to 3</span></div>
+        <div id="scoreboard"><span class="red" id="score-red">0</span><span class="sep">GREEN&nbsp;·&nbsp;BLUE</span><span class="blue" id="score-blue">0</span><span class="goal">first to 3</span></div>
         <div id="healthbar"><div id="hp-fill"></div><div id="ar-fill"></div><span id="hp-label">100</span></div>
         <div id="carry-status"></div>
         <div id="build"></div>
@@ -160,10 +167,13 @@
 
     <div class="overlay" id="overlay-start">
         <h1>Fighting Island Arena</h1>
-        <p><b>Capture the Flag</b> on the island of Unguja (Zanzibar). You're a <b style="color:#60a5fa">Blue</b> soldier at Nungwi in the north.</p>
-        <p>Climb the hills, push through Jozani forest, grab the <b style="color:#f87171">Red flag</b> in the south and run it home. First to <b>3 captures</b> wins.</p>
+        <p><b>Capture the Flag</b> on the island of Unguja (Zanzibar). Climb the hills, push through the forests, grab the enemy flag and run it home. First to <b>3 captures</b> wins.</p>
+        <p><b>Pick your side</b> — start at the top or the bottom of the map:</p>
+        <div class="teamrow">
+            <div class="teambtn blue" id="pick-blue">🔵 Play BLUE<small>start in the North (top)</small></div>
+            <div class="teambtn green" id="pick-green">🟢 Play GREEN<small>start in the South (bottom)</small></div>
+        </div>
         <div class="keys"><span>W</span><span>A</span><span>S</span><span>D</span> move · <span>Mouse</span> look · <span>Space</span>/<span>Click</span> shoot · <span>R</span> rocket · <span>E</span> get in/out the army car · <span>Shift</span> jump · <span>C</span> crouch · <span>Esc</span> free mouse</div>
-        <div class="pulse" id="start-pulse">▶ Click to play</div>
     </div>
     <div class="overlay hidden" id="overlay-pause"><h2>Paused</h2><p>Tap or click to resume.</p><div class="pulse">▶ Resume</div></div>
     <div class="overlay hidden" id="overlay-win"><h2 id="win-title">Blue team wins!</h2><p id="win-sub">3 flags captured.</p><button id="btn-restart">Play again</button></div>
@@ -355,10 +365,10 @@
             trunk:new THREE.MeshLambertMaterial({color:0x7a5230}), leaf:new THREE.MeshLambertMaterial({color:0x3f9d4f}), leafDk:new THREE.MeshLambertMaterial({color:0x2f7d3c}),
             blob:new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:0.22,depthWrite:false}), skin:new THREE.MeshLambertMaterial({color:0xe8b48c}), dark:new THREE.MeshLambertMaterial({color:0x23262e}),
             uniform:new THREE.MeshLambertMaterial({color:0x6b7344}), uniformDk:new THREE.MeshLambertMaterial({color:0x515a36}), vest:new THREE.MeshLambertMaterial({color:0x3b3f2e}), helmet:new THREE.MeshLambertMaterial({color:0x5c6138}),
-            gun:new THREE.MeshPhongMaterial({color:0x2e333b,specular:0x555555,shininess:55}), red:new THREE.MeshLambertMaterial({color:0xe23b3b}), blue:new THREE.MeshLambertMaterial({color:0x3b7de2}),
-            redClothA:new THREE.MeshLambertMaterial({color:0xef4444}), blueClothA:new THREE.MeshLambertMaterial({color:0x3b82f6}),
-            redBase:new THREE.MeshBasicMaterial({color:0xef4444,transparent:true,opacity:0.30,depthWrite:false}), blueBase:new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:0.30,depthWrite:false}),
-            redRing:new THREE.MeshBasicMaterial({color:0xf87171}), blueRing:new THREE.MeshBasicMaterial({color:0x60a5fa}),
+            gun:new THREE.MeshPhongMaterial({color:0x2e333b,specular:0x555555,shininess:55}), red:new THREE.MeshLambertMaterial({color:0x3aae4f}), blue:new THREE.MeshLambertMaterial({color:0x3b7de2}),
+            redClothA:new THREE.MeshLambertMaterial({color:0x37c24a}), blueClothA:new THREE.MeshLambertMaterial({color:0x3b82f6}),
+            redBase:new THREE.MeshBasicMaterial({color:0x37c24a,transparent:true,opacity:0.30,depthWrite:false}), blueBase:new THREE.MeshBasicMaterial({color:0x3b82f6,transparent:true,opacity:0.30,depthWrite:false}),
+            redRing:new THREE.MeshBasicMaterial({color:0x7dd56f}), blueRing:new THREE.MeshBasicMaterial({color:0x60a5fa}),
             bulletDark:new THREE.MeshLambertMaterial({color:0x2a2e36}), rktBody:new THREE.MeshLambertMaterial({color:0x55606e}), rktHead:new THREE.MeshLambertMaterial({color:0xffae3b}),
             concrete:new THREE.MeshLambertMaterial({color:0xc2bba8}), concreteDk:new THREE.MeshLambertMaterial({color:0x8f8773}), armour:new THREE.MeshLambertMaterial({color:0x6fa8d6}),
             ghost:new THREE.MeshLambertMaterial({color:0x8fd0ff,transparent:true,opacity:0.45,depthWrite:false}),
@@ -485,7 +495,7 @@
         function buildBase(team,nrm){ const pos=settleInside(toWorld(nrm.xn,nrm.zn),BASE_R+6),y=terrainH(pos.x,pos.z); const grp=new THREE.Group(); grp.position.set(pos.x,y,pos.z);
             const disc=new THREE.Mesh(G.baseDisc,team==='red'?M.redBase:M.blueBase); disc.position.y=0.8; grp.add(disc); const ring=new THREE.Mesh(G.baseRing,team==='red'?M.redRing:M.blueRing); ring.rotation.x=Math.PI/2; ring.position.y=1.0; grp.add(ring);
             for(let i=0;i<5;i++){ const a=(i/5)*Math.PI*2; plantTree(pos.x+Math.cos(a)*(BASE_R+12),pos.z+Math.sin(a)*(BASE_R+12),true); }
-            const lab=makeLabel(team==='red'?'RED BASE':'BLUE BASE'); lab.position.set(0,58,0); grp.add(lab); scene.add(grp); return {x:pos.x,z:pos.z,y:y}; }
+            const lab=makeLabel(team==='red'?'GREEN BASE':'BLUE BASE'); lab.position.set(0,58,0); grp.add(lab); scene.add(grp); return {x:pos.x,z:pos.z,y:y}; }
         function buildFlagMesh(team){ const grp=new THREE.Group(); const pole=new THREE.Mesh(G.pole,M.gun); pole.position.y=18; grp.add(pole); const cloth=new THREE.Mesh(G.cloth,team==='red'?M.redClothA:M.blueClothA); cloth.position.set(9,29,0); grp.add(cloth); scene.add(grp); return grp; }
         VILLAGES.forEach(buildVillage); ROCKS.forEach(r=>buildRock(r[0],r[1])); plantForest(-750,2700,560,70,7);
         const _bB=toWorld(BLUE_BASE_NORM.xn,BLUE_BASE_NORM.zn), _rB=toWorld(RED_BASE_NORM.xn,RED_BASE_NORM.zn);   // base centres (bases are built later)
@@ -636,15 +646,18 @@
             placeAt(x,z){ this.x=x; this.z=z; this.y=terrainH(x,z); this.spawn={x:x,z:z}; }
             doTag(){ if(this.tag>0) return; this.tag=TAG_TIME; this.vx=this.vz=this.vy=0; this.airborne=false;
                 if(this.carrying){ const fl=this.carrying; fl.state='DROPPED'; fl.drop=FLAG_DROP_TIME; fl.carrier=null; fl.x=this.x; fl.z=this.z; this.carrying=null; }
-                spawnEffect(this.x,this.y+BODY_OFF,this.z,this.team==='red'?0xff6b6b:0x6bb0ff,6,34,0.45); if(this===human){ flashDamage(); viewMode='third'; fpvBullet=null; } }
+                spawnEffect(this.x,this.y+BODY_OFF,this.z,this.team==='red'?0x66cf66:0x6bb0ff,6,34,0.45); if(this===human){ flashDamage(); viewMode='third'; fpvBullet=null; } }
         }
         const players=[]; let human=null;
         function spawnOffsets(){ return [[0,0],[30,22],[-30,22],[0,40],[34,-8],[-34,-8]]; }
-        function setupTeams(){ players.length=0; const off=spawnOffsets();
-            const blueDefs=[{bot:false,role:'player',name:'You'},{bot:true,role:'runner',name:'Blue Runner'},{bot:true,role:'fighter',name:'Blue Bot 2'},{bot:true,role:'fighter',name:'Blue Bot 3'}];
-            const redDefs=[{bot:true,role:'runner',name:'Red Runner'},{bot:true,role:'fighter',name:'Red Bot 2'},{bot:true,role:'fighter',name:'Red Bot 3'}];
-            blueDefs.forEach((d,i)=>{ const e=new Entity('blue',d.bot,d.role,d.name),sp=clampToIsland({x:BASES.blue.x+off[i][0],z:BASES.blue.z+off[i][1]},PLAYER_R+2); e.placeAt(sp.x,sp.z); players.push(e); if(!d.bot) human=e; });
-            redDefs.forEach((d,i)=>{ const e=new Entity('red',d.bot,d.role,d.name),sp=clampToIsland({x:BASES.red.x+off[i][0],z:BASES.red.z+off[i][1]},PLAYER_R+2); e.placeAt(sp.x,sp.z); players.push(e); });
+        const teamName=t=>t==='blue'?'Blue':'Green';   // the 'red' team is shown to the player as GREEN
+        function setupTeams(){
+            for(const e of players){ if(e.mesh){ scene.remove(e.mesh); if(e.mesh._blob) scene.remove(e.mesh._blob); } }   // clear old soldiers (the team can be re-chosen)
+            players.length=0; const off=spawnOffsets(); const enemy=playerTeam==='blue'?'red':'blue';
+            const mine=[{bot:false,role:'player',name:'You'},{bot:true,role:'runner',name:teamName(playerTeam)+' Runner'},{bot:true,role:'fighter',name:teamName(playerTeam)+' Bot 2'},{bot:true,role:'fighter',name:teamName(playerTeam)+' Bot 3'}];
+            const foe=[{bot:true,role:'runner',name:teamName(enemy)+' Runner'},{bot:true,role:'fighter',name:teamName(enemy)+' Bot 2'},{bot:true,role:'fighter',name:teamName(enemy)+' Bot 3'}];
+            mine.forEach((d,i)=>{ const e=new Entity(playerTeam,d.bot,d.role,d.name),sp=clampToIsland({x:BASES[playerTeam].x+off[i][0],z:BASES[playerTeam].z+off[i][1]},PLAYER_R+2); e.placeAt(sp.x,sp.z); players.push(e); if(!d.bot) human=e; });
+            foe.forEach((d,i)=>{ const e=new Entity(enemy,d.bot,d.role,d.name),sp=clampToIsland({x:BASES[enemy].x+off[i][0],z:BASES[enemy].z+off[i][1]},PLAYER_R+2); e.placeAt(sp.x,sp.z); players.push(e); });
             assignBuddies();
         }
         // pair the fighter-bots on each team so they roam and fight as twos (the runner stays solo)
@@ -708,9 +721,9 @@
         function shotDir(shooter){ if(shooter===human){ const tp=crosshairPoint(),mx=shooter.x,my=shooter.y+GUN_Y,mz=shooter.z; let dx=tp.x-mx,dy=tp.y-my,dz=tp.z-mz; const dl=Math.hypot(dx,dy,dz)||1; return {x:dx/dl,y:dy/dl,z:dz/dl}; } return aimDir(shooter); }   // human shots converge on the crosshair point (fixes hill aiming)
         function fireBullet(shooter){ const d=shotDir(shooter); const ox=shooter.x+d.x*(PLAYER_R+5),oz=shooter.z+d.z*(PLAYER_R+5),oy=shooter.y+GUN_Y-(shooter.crouch?CROUCH_DROP:0)+d.y*(PLAYER_R+5);
             const grp=new THREE.Group(); grp.rotation.order='YXZ'; const dart=new THREE.Mesh(G.bullet,M.bulletDark); dart.rotation.x=Math.PI/2; grp.add(dart);   // dark, sharp dart
-            const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:shooter.team==='red'?0xff5a45:0x55a8ff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); halo.scale.set(8,8,1); halo.position.z=-3; grp.add(halo); grp.position.set(ox,oy,oz); scene.add(grp);
+            const halo=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:shooter.team==='red'?0x4fc24a:0x55a8ff,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); halo.scale.set(8,8,1); halo.position.z=-3; grp.add(halo); grp.position.set(ox,oy,oz); scene.add(grp);
             shooter.recoil=1;
-            const b={x:ox,z:oz,y:oy,vx:d.x*BULLET_SPEED,vy:d.y*BULLET_SPEED,vz:d.z*BULLET_SPEED,team:shooter.team,owner:shooter,dist:0,mesh:grp}; bullets.push(b); spawnEffect(ox,oy,oz,shooter.team==='red'?0xff7b6b:0x7cc0ff,8,3,0.12); sndShoot(posVol(ox,oz,0.5)); return b; }
+            const b={x:ox,z:oz,y:oy,vx:d.x*BULLET_SPEED,vy:d.y*BULLET_SPEED,vz:d.z*BULLET_SPEED,team:shooter.team,owner:shooter,dist:0,mesh:grp}; bullets.push(b); spawnEffect(ox,oy,oz,shooter.team==='red'?0x86e08a:0x7cc0ff,8,3,0.12); sndShoot(posVol(ox,oz,0.5)); return b; }
         function removeBullet(i){ scene.remove(bullets[i].mesh); bullets[i].mesh.children[1].material.dispose(); bullets.splice(i,1); }
         const rockets=[];
         const turrets=[], builtStructures=[]; let building=null;   // defenses: pillbox turrets + built walls/boxes
@@ -734,7 +747,7 @@
             const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:GLOW_TEX,color:color,transparent:true,depthWrite:false,blending:THREE.AdditiveBlending})); spr.scale.set(from,from,1); spr.position.set(x,y,z); scene.add(spr); effects.push({spr:spr,t:0,life:life,from:from,to:to}); }
         function updateEffects(dt){ for(let i=effects.length-1;i>=0;i--){ const e=effects[i]; e.t+=dt; const k=Math.min(1,e.t/e.life),s=e.from+(e.to-e.from)*k; e.spr.scale.set(s,s,1); e.spr.material.opacity=1-k; if(e.t>=e.life){ scene.remove(e.spr); e.spr.material.dispose(); effects.splice(i,1); } } }
         function hit(e,dmg){ if(e.tag>0) return; let d=dmg; if(e.armour>0){ const ab=Math.min(e.armour,dmg*0.5); d-=ab; e.armour-=ab; }   // armour absorbs half
-            e.hp-=d; spawnEffect(e.x,e.y+BODY_OFF,e.z,e.team==='red'?0xff9a9a:0x9ac8ff,4,16,0.2); if(e===human) flashDamage(); if(e.hp<=0){ e.hp=0; e.doTag(); } }
+            e.hp-=d; spawnEffect(e.x,e.y+BODY_OFF,e.z,e.team==='red'?0xa9e8a3:0x9ac8ff,4,16,0.2); if(e===human) flashDamage(); if(e.hp<=0){ e.hp=0; e.doTag(); } }
 
         // ---- airstrikes: a plane flies in from a random direction and bombs the crosshair point ----
         const planes=[], bombs=[];
@@ -792,10 +805,11 @@
         // ===================== INPUT =====================
         const keys={f:false,b:false,l:false,r:false}; let firing=false, gDown=false, spaceDown=false, cDown=false, jDown=false, mDown=false, iDown=false, bDown=false, eDown=false, key3Held=false;
         let running=false, gameOver=false, viewMode='third', fpvBullet=null, fpvTimer=0, inventoryOpen=false;
+        let playerTeam='blue', enemyTeam='red';   // 'blue' = north (top), 'red' (shown as GREEN) = south (bottom) — chosen on the start screen
         let gems=0, nearArmoury=false; const SHOP={ helmet:false, boots:false, rapid:false };   // per-match wallet + purchases (human only)
         const touchMove={x:0,y:0};
         const elStart=document.getElementById('overlay-start'), elPause=document.getElementById('overlay-pause'), elWin=document.getElementById('overlay-win');
-        if(isTouch){ document.body.classList.add('touch'); document.getElementById('start-pulse').textContent='▶ Tap to play'; }
+        if(isTouch){ document.body.classList.add('touch'); }
 
         function jump(){ if(human&&human.tag<=0&&!human.airborne){ human.vy=JUMP_V; human.airborne=true; } }
         function playerShoot(){ if(human&&human.tag<=0&&human.cooldown<=0){ fireBullet(human); human.cooldown=SHOP.rapid?RAPID_PISTOL_CD:0.4; } }   // Rapid Fire upgrade shortens the cooldown
@@ -836,8 +850,12 @@
 
         function goFullscreen(){ const el=document.documentElement, fn=el.requestFullscreen||el.webkitRequestFullscreen||el.webkitRequestFullScreen||el.mozRequestFullScreen; if(fn && !(document.fullscreenElement||document.webkitFullscreenElement)){ try{ const p=fn.call(el); if(p&&p.catch) p.catch(()=>{}); }catch(e){} } }
         function startGame(){ if(gameOver) return; initAudio(); audioResume(); if(isTouch){ goFullscreen(); running=true; elStart.classList.add('hidden'); elPause.classList.add('hidden'); } else { renderer.domElement.requestPointerLock(); } }
-        renderer.domElement.addEventListener('click', ()=>{ if(!isTouch) startGame(); });
-        elStart.addEventListener('click', startGame); elPause.addEventListener('click', startGame);
+        // pick a side on the start screen: Blue starts north (top), Green starts south (bottom). 'green' maps to the internal 'red' team.
+        function chooseTeam(side){ playerTeam=(side==='green'?'red':'blue'); enemyTeam=(playerTeam==='blue'?'red':'blue'); setupTeams(); startGame(); }
+        document.getElementById('pick-blue').addEventListener('click', e=>{ e.stopPropagation(); chooseTeam('blue'); });
+        document.getElementById('pick-green').addEventListener('click', e=>{ e.stopPropagation(); chooseTeam('green'); });
+        renderer.domElement.addEventListener('click', ()=>{ if(!isTouch && elStart.classList.contains('hidden')) startGame(); });   // resume after Esc; on the start screen you must pick a side
+        elPause.addEventListener('click', startGame);
         document.addEventListener('pointerlockchange', ()=>{ if(isTouch) return; running=(document.pointerLockElement===renderer.domElement);
             if(running){ elStart.classList.add('hidden'); elPause.classList.add('hidden'); } else if(!gameOver){ closeInventory(); elStart.classList.add('hidden'); elPause.classList.remove('hidden'); } });
         document.addEventListener('mousemove', e=>{ if(!running||!human||isTouch) return; const ms=(human.weapon==='mg')?0.5:1; human.yaw-=e.movementX*SENS_YAW*ms; human.pitch-=e.movementY*SENS_PITCH*ms; human.pitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,human.pitch)); });
@@ -920,15 +938,15 @@
                 let px=-nz,pz=nx,al=px*gx+pz*gz; if(al<0){px=-px;pz=-pz;al=-al;} if(al<0.15){px=-nz*e.flank;pz=nx*e.flank;} mvx+=px*push*2.4; mvz+=pz*push*2.4; } } return {x:mvx,z:mvz}; }
         function yawFromDir(dx,dz){ return Math.atan2(dx,dz); }
         function angleLerp(a,t,step){ let d=Math.atan2(Math.sin(t-a),Math.cos(t-a)); if(Math.abs(d)<=step) return t; return a+Math.sign(d)*step; }
-        // difficulty: rises from 0 → 1 as the human closes on the Red flag (their objective)
-        function threatLevel(){ if(!human) return 0; const d=Math.hypot(human.x-BASES.red.x, human.z-BASES.red.z); return Math.max(0,Math.min(1,1-d/THREAT_RANGE)); }
-        function manageDefenders(){ const want=3+Math.floor(threatLevel()*4); let reds=players.filter(p=>p.team==='red').length; const before=reds;
-            while(reds<want && reds<MAX_RED){ const e=new Entity('red',true,'fighter','Red Defender'); const sp=clampToIsland({x:BASES.red.x+((reds*41)%70-35),z:BASES.red.z+(reds%2?30:-30)},PLAYER_R+2); e.placeAt(sp.x,sp.z);
-                players.push(e); reds++; spawnEffect(e.x,e.y+BODY_OFF,e.z,0xff6b6b,6,36,0.45); } if(reds!==before) assignBuddies(); }
+        // difficulty: rises from 0 → 1 as the human closes on the ENEMY flag (their objective)
+        function threatLevel(){ if(!human) return 0; const d=Math.hypot(human.x-BASES[enemyTeam].x, human.z-BASES[enemyTeam].z); return Math.max(0,Math.min(1,1-d/THREAT_RANGE)); }
+        function manageDefenders(){ const want=3+Math.floor(threatLevel()*4); let defs=players.filter(p=>p.team===enemyTeam).length; const before=defs;
+            while(defs<want && defs<MAX_RED){ const e=new Entity(enemyTeam,true,'fighter',teamName(enemyTeam)+' Defender'); e.reinforce=true; const sp=clampToIsland({x:BASES[enemyTeam].x+((defs*41)%70-35),z:BASES[enemyTeam].z+(defs%2?30:-30)},PLAYER_R+2); e.placeAt(sp.x,sp.z);
+                players.push(e); defs++; spawnEffect(e.x,e.y+BODY_OFF,e.z,0x66cf66,6,36,0.45); } if(defs!==before) assignBuddies(); }
 
         // ===================== BOT AI =====================
         function updateBot(e,dt){ const enemyFlag=e.team==='red'?flags.blue:flags.red; const mv={x:0,z:0}; let aimTarget=null, actingRunner=false;
-            const sk=(e.team==='red')?threatLevel():0;   // red bots get sharper as you near their flag
+            const sk=(e.team===enemyTeam)?threatLevel():0;   // the defending team gets sharper as you near their flag
             const aimTol=0.20+0.10*sk, fireCD=(1.0+Math.random()*1.3)*(1-0.45*sk), rocketChance=0.06+0.12*sk, turnRate=4.2*(1+0.6*sk);
             if(e.role==='runner'){ if(e.carrying){ const h=BASES[e.team]; const dx=h.x-e.x,dz=h.z-e.z,d=Math.hypot(dx,dz)||1; mv.x=dx/d; mv.z=dz/d; actingRunner=true; }
                 else if(enemyFlag.state==='HOME'||enemyFlag.state==='DROPPED'){ const dx=enemyFlag.x-e.x,dz=enemyFlag.z-e.z,d=Math.hypot(dx,dz)||1; mv.x=dx/d; mv.z=dz/d; actingRunner=true; }
@@ -961,9 +979,9 @@
             else if(fl.state==='DROPPED'){ fl.drop-=dtNow; if(fl.drop<=0){ returnHome(fl); continue; } for(const p of players){ if(p.tag>0) continue; const near=(p.x-fl.x)**2+(p.z-fl.z)**2<PICKUP_DIST**2; if(!near) continue; if(p.team===cap){ grab(fl,p); break; } if(p.team===fl.team){ returnHome(fl); break; } } }
             else if(fl.state==='CARRIED'){ const c=fl.carrier; if(!c){ returnHome(fl); continue; } fl.x=c.x; fl.z=c.z; const own=flags[c.team],home=BASES[c.team]; if(own.state==='HOME'&&(c.x-home.x)**2+(c.z-home.z)**2<(BASE_R-4)**2) capture(c,fl); }
             if(fl.state==='CARRIED'&&fl.carrier){ fl.mesh.position.set(fl.carrier.x,fl.carrier.y+18,fl.carrier.z); fl.mesh.rotation.y=fl.carrier.yaw; } else { fl.mesh.position.set(fl.x,terrainH(fl.x,fl.z),fl.z); fl.mesh.rotation.y=0; } } }
-        function grab(fl,p){ fl.state='CARRIED'; fl.carrier=p; p.carrying=fl; spawnEffect(p.x,p.y+BODY_OFF,p.z,fl.team==='red'?0xff5a45:0x55a8ff,6,30,0.4); }
+        function grab(fl,p){ fl.state='CARRIED'; fl.carrier=p; p.carrying=fl; spawnEffect(p.x,p.y+BODY_OFF,p.z,fl.team==='red'?0x4fc24a:0x55a8ff,6,30,0.4); }
         function returnHome(fl){ fl.state='HOME'; fl.carrier=null; fl.drop=0; fl.x=fl.home.x; fl.z=fl.home.z; }
-        function capture(c,fl){ score[c.team]++; spawnEffect(BASES[c.team].x,BASES[c.team].y+20,BASES[c.team].z,c.team==='red'?0xff5a45:0x55a8ff,10,90,0.9); c.carrying=null; returnHome(fl); if(c===human) awardGems(GEM_CAPTURE); if(score[c.team]>=WIN_SCORE) endMatch(c.team); }
+        function capture(c,fl){ score[c.team]++; spawnEffect(BASES[c.team].x,BASES[c.team].y+20,BASES[c.team].z,c.team==='red'?0x4fc24a:0x55a8ff,10,90,0.9); c.carrying=null; returnHome(fl); if(c===human) awardGems(GEM_CAPTURE); if(score[c.team]>=WIN_SCORE) endMatch(c.team); }
 
         // ===================== TICK =====================
         let timeNow=0, dtNow=0;
@@ -1050,7 +1068,7 @@
                 elAir.textContent='✈️ '+human.airstrikes;
                 if(building){ elBuild.style.display='block'; elBuild.textContent='🔨 '+(building.type==='wall'?'Wall':'Pillbox')+'  '+Math.ceil(building.dur-building.t)+'s'; } else elBuild.style.display='none';
                 const hpc=Math.max(0,Math.round(human.hp)); elHpFill.style.width=hpc+'%'; elHpFill.style.background=hpc>50?'#46d65f':(hpc>25?'#f5c542':'#ef4444'); elArFill.style.width=Math.max(0,Math.round(human.armour))+'%'; elHpLabel.textContent=hpc; }
-            if(human&&human.carrying){ elCarry.style.display='block'; elCarry.style.color='#fca5a5'; elCarry.textContent='🚩 You have the RED flag — run it home to the north!'; } else elCarry.style.display='none';
+            if(human&&human.carrying){ elCarry.style.display='block'; elCarry.style.color='#fde68a'; elCarry.textContent='🚩 You have the '+teamName(enemyTeam).toUpperCase()+' flag — run it home to the '+(playerTeam==='blue'?'north':'south')+'!'; } else elCarry.style.display='none';
             elGems.textContent='💎 '+gems;
             if(nearArmoury&&running){ if(elShop.classList.contains('hidden')) elShop.classList.remove('hidden'); updateShop(); } else if(!elShop.classList.contains('hidden')) elShop.classList.add('hidden'); }
         // ---- minimap (Zanzibar shape, north up): island, hills, bases, flags, you ----
@@ -1066,23 +1084,23 @@
             s.fillStyle='rgba(120,182,108,0.55)'; s.fill(); s.strokeStyle='rgba(255,255,255,0.5)'; s.lineWidth=1.4; s.stroke();
             s.strokeStyle='rgba(80,104,64,0.75)'; s.lineWidth=1; MM_HILLS.forEach(h=>{ const c=mmPt(h[0],h[1]); for(let r=2.5;r<=8;r+=2.7){ s.beginPath(); s.arc(c[0],c[1],r,0,7); s.stroke(); } });
             function sdot(nx,nz,col,r){ const c=mmPt(nx,nz); s.fillStyle=col; s.beginPath(); s.arc(c[0],c[1],r,0,7); s.fill(); }
-            const bn=w2n(BASES.blue.x,BASES.blue.z), rn=w2n(BASES.red.x,BASES.red.z); sdot(bn[0],bn[1],'rgba(96,165,250,0.5)',7); sdot(rn[0],rn[1],'rgba(248,113,113,0.5)',7);
+            const bn=w2n(BASES.blue.x,BASES.blue.z), rn=w2n(BASES.red.x,BASES.red.z); sdot(bn[0],bn[1],'rgba(96,165,250,0.5)',7); sdot(rn[0],rn[1],'rgba(95,207,106,0.5)',7);
             mmStaticReady=true; }
         function drawMinimap(){ if(!mmStaticReady) buildStaticMinimap(); mmx.clearRect(0,0,MMW,MMH); mmx.drawImage(mmStatic,0,0);
-            const bf=w2n(flags.blue.x,flags.blue.z), rf=w2n(flags.red.x,flags.red.z); mmDot(bf[0],bf[1],'#3b82f6',3.2); mmDot(rf[0],rf[1],'#ef4444',3.2);
+            const bf=w2n(flags.blue.x,flags.blue.z), rf=w2n(flags.red.x,flags.red.z); mmDot(bf[0],bf[1],'#3b82f6',3.2); mmDot(rf[0],rf[1],'#3aae4f',3.2);
             if(!human||!human.inCar){ const cn=w2n(car.x,car.z); mmDot(cn[0],cn[1],'#a3e635',3.4); }
             if(human){ const pn=w2n(human.x,human.z),c=mmPt(pn[0],pn[1]); mmx.save(); mmx.translate(c[0],c[1]); mmx.rotate(Math.atan2(Math.cos(human.yaw),Math.sin(human.yaw))); mmx.fillStyle='#fde047'; mmx.beginPath(); mmx.moveTo(6,0); mmx.lineTo(-4,-3.6); mmx.lineTo(-4,3.6); mmx.closePath(); mmx.fill(); mmx.restore(); } }
 
         // ===================== MATCH FLOW =====================
         function endMatch(team){ gameOver=true; running=false; if(document.pointerLockElement) document.exitPointerLock();
-            document.getElementById('win-title').textContent=(team==='blue'?'Blue team wins!':'Red team wins!'); document.getElementById('win-title').style.color=team==='blue'?'#60a5fa':'#f87171';
+            document.getElementById('win-title').textContent=(team==='blue'?'Blue team wins!':'Green team wins!'); document.getElementById('win-title').style.color=team==='blue'?'#60a5fa':'#5fcf6a';
             document.getElementById('win-sub').textContent=WIN_SCORE+' flags captured. Great running!'; elWin.classList.remove('hidden'); }
         function resetMatch(){ while(bullets.length) removeBullet(bullets.length-1); while(rockets.length) removeRocket(rockets.length-1); while(effects.length){ const e=effects.pop(); scene.remove(e.spr); e.spr.material.dispose(); }
             while(planes.length){ const pl=planes.pop(); if(pl.snd) pl.snd.stop(); scene.remove(pl.mesh); if(pl.marker&&pl.marker.parent){ scene.remove(pl.marker); pl.marker.geometry.dispose(); pl.marker.material.dispose(); } }
             while(bombs.length){ const bm=bombs.pop(); if(bm.snd) bm.snd.stop(); scene.remove(bm.mesh); if(bm.marker&&bm.marker.parent){ scene.remove(bm.marker); bm.marker.geometry.dispose(); bm.marker.material.dispose(); } }
             if(building){ scene.remove(building.ghost); building=null; }
             for(const bs of builtStructures){ scene.remove(bs.grp); const oi=OBSTACLES.indexOf(bs.obs); if(oi>=0) OBSTACLES.splice(oi,1); } builtStructures.length=0; turrets.length=0;
-            for(let i=players.length-1;i>=0;i--){ if(players[i].name==='Red Defender'){ scene.remove(players[i].mesh); scene.remove(players[i].mesh._blob); players.splice(i,1); } }
+            for(let i=players.length-1;i>=0;i--){ if(players[i].reinforce){ scene.remove(players[i].mesh); scene.remove(players[i].mesh._blob); players.splice(i,1); } }
             for(const pk of pickups){ pk.taken=false; pk.grp.visible=true; }
             score.red=0; score.blue=0; returnHome(flags.red); returnHome(flags.blue);
             for(const e of players){ e.x=e.spawn.x; e.z=e.spawn.z; e.y=terrainH(e.x,e.z); e.vx=e.vz=e.vy=0; e.airborne=false; e.crouch=false; e.inCar=false; e.tag=0; e.carrying=null; e.cooldown=0.4+Math.random()*0.6; e.rocketCD=0; e.rocketWind=0; e.hasMG=false; e.weapon='pistol'; e.mgAmmo=MG_MAX; e.hp=MAX_HP; e.armour=0; e.airstrikes=AIRSTRIKES; e.yaw=e.team==='blue'?0:Math.PI; }
