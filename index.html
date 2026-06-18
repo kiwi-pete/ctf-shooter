@@ -212,10 +212,10 @@
         const camera=new THREE.PerspectiveCamera(62, innerWidth/innerHeight, 1, ISLAND_LENGTH*2.3); camera.position.set(0,120,0);
         const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight);
         renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
-        renderer.outputEncoding=THREE.sRGBEncoding; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=1.05;
+        renderer.outputEncoding=THREE.sRGBEncoding; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.9;
         document.getElementById('app').appendChild(renderer.domElement);
         const isTouch = matchMedia('(pointer: coarse)').matches || ('ontouchstart' in window) || location.search.indexOf('touch')>=0;
-        scene.add(new THREE.HemisphereLight(0xcfeaff,0x5a7a45,0.62));
+        scene.add(new THREE.HemisphereLight(0xbcd6e6,0x47603a,0.5));
         const sun=new THREE.DirectionalLight(0xfff3df,1.15); sun.position.set(800,1500,500);
         sun.castShadow=true; sun.shadow.mapSize.set(isTouch?1024:2048,isTouch?1024:2048);
         sun.shadow.camera.near=200; sun.shadow.camera.far=2600; sun.shadow.bias=-0.0006; sun.shadow.normalBias=1.8;
@@ -239,7 +239,7 @@
         let terrainGeo=null, terrainDirty=false, terrainMat=null;
         (function buildTerrainMesh(){
             const verts=[],cols=[],idx=[];
-            const cSand=[0.90,0.82,0.58],cFoam=[0.93,0.95,0.93],cGrass=[0.42,0.66,0.32],cGrassDk=[0.27,0.46,0.22],cRock=[0.55,0.50,0.42],cPeak=[0.74,0.72,0.66];
+            const cSand=[0.86,0.77,0.53],cFoam=[0.93,0.95,0.93],cGrass=[0.28,0.46,0.20],cGrassDk=[0.17,0.32,0.14],cRock=[0.48,0.44,0.37],cPeak=[0.66,0.64,0.58];
             function mix(a,b,t){ return [a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,a[2]+(b[2]-a[2])*t]; }
             for(let j=0;j<gnz;j++) for(let i=0;i<gnx;i++){ const x=gx0+i*gdx,z=gz0+j*gdz,h=Hgrid[j*gnx+i]; verts.push(x,h,z);
                 const hl=Hgrid[j*gnx+Math.max(0,i-1)],hr=Hgrid[j*gnx+Math.min(gnx-1,i+1)],hd=Hgrid[Math.max(0,j-1)*gnx+i],hu=Hgrid[Math.min(gnz-1,j+1)*gnx+i];
@@ -269,7 +269,7 @@
         // sparse grass specks scattered on the grass — gives a sense of motion as you move
         (function grassDetail(){ const pos=[],col=[]; let n=0,guard=0;
             while(n<4200 && guard<22000){ guard++; const x=gx0+Math.random()*BBOX_W, z=gz0+Math.random()*ISLAND_LENGTH; if(!pointInIsland(x,z)) continue; const h=terrainH(x,z); if(h<1.6||h>72) continue;
-                pos.push(x,h+1.2,z); const v=0.45+Math.random()*0.32; col.push(0.22*v+0.05,0.5*v+0.12,0.2*v); n++; }
+                pos.push(x,h+1.2,z); const v=0.45+Math.random()*0.32; col.push(0.16*v+0.03,0.38*v+0.07,0.14*v); n++; }
             const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3)); g.setAttribute('color',new THREE.Float32BufferAttribute(col,3));
             scene.add(new THREE.Points(g,new THREE.PointsMaterial({size:3.4,vertexColors:true,sizeAttenuation:true}))); })();
 
