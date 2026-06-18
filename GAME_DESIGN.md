@@ -86,6 +86,8 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
   camera **follows that shell from further back and slower** than your own rocket, then
   glides back to the tank view ~0.5 s after impact. Engine **overheats after 20 s** (~18 s
   to cool). It **rides over the hills** and **launches off steep crests**.
+- **Hill MG nests (E to man/dismount):** each of the 3 hill summits has a **tripod-mounted machine gun** (labelled 🔫 MG NEST). Climb to a summit, press **E** to take it over — you're pinned to the gun, aim with the mouse, and **FIRE rips out rapid, unlimited rounds** (~20/s). Press **E** to get off.
+- **Enemy force ×10:** the defending team now fields **30 soldiers** from the start and reinforces up to **70** as you near their flag — a real horde to fight through.
 - **Drone (collect 3 in the field; switch to it in Inventory I, key 5):** a single-use
   quadcopter you pilot — **WASD fly, look up/down to climb/dive, Shift up / C down**, camera
   behind & above. **20 s battery**, then it dies, falls and explodes. **FIRE detonates it**
