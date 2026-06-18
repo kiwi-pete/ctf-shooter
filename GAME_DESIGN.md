@@ -90,6 +90,7 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
 - **Hill rocket nests (E to man/dismount):** each of the 3 hill summits has a **tripod-mounted automatic rocket launcher** (labelled 🚀 ROCKET NEST). Climb to a summit, press **E** to take it over — you're pinned to the launcher, aim with the mouse, and **FIRE pumps out one dead-straight rocket every second at 5× normal range**. Press **E** to get off.
 - **Enemy look:** the enemy team is unmistakable — **black kit with red armbands** (helmet band, chest patch and arm bands all red), versus your camo. Works whichever side you pick.
 - **Enemy force ×10:** the defending team now fields **30 soldiers** from the start and reinforces up to **70** as you near their flag — a real horde to fight through.
+- **Matched teams:** your own side is kept the **same size as the enemy** at all times (30 to start, scaling up to 70 as the enemy reinforces near their flag), so you're never outnumbered — allies rally from your base.
 - **Drone (collect 3 in the field; switch to it in Inventory I, key 5):** a single-use
   quadcopter you pilot — **WASD flies level** (forward/back/strafe relative to heading,
   unaffected by where you look); **climb/dive with `]` (up) / `\` (down)** on keyboard, or the

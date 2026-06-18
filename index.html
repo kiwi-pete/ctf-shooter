@@ -667,11 +667,15 @@
         const teamName=t=>t==='blue'?'Blue':'Green';   // the 'red' team is shown to the player as GREEN
         function setupTeams(){
             for(const e of players){ if(e.mesh){ scene.remove(e.mesh); if(e.mesh._blob) scene.remove(e.mesh._blob); } }   // clear old soldiers (the team can be re-chosen)
-            players.length=0; const off=spawnOffsets(); const enemy=playerTeam==='blue'?'red':'blue';
-            const mine=[{bot:false,role:'player',name:'You'},{bot:true,role:'runner',name:teamName(playerTeam)+' Runner'},{bot:true,role:'fighter',name:teamName(playerTeam)+' Bot 2'},{bot:true,role:'fighter',name:teamName(playerTeam)+' Bot 3'}];
+            players.length=0; const enemy=playerTeam==='blue'?'red':'blue';
+            const mine=[{bot:false,role:'player',name:'You'},{bot:true,role:'runner',name:teamName(playerTeam)+' Runner'}];   // matched teams: your squad is the same size as the enemy (player + runner + 28 fighters = 30)
+            for(let i=3;i<=30;i++) mine.push({bot:true,role:'fighter',name:teamName(playerTeam)+' Bot '+i});
             const foe=[{bot:true,role:'runner',name:teamName(enemy)+' Runner'}];   // 10x enemy force: one runner + 29 fighters
             for(let i=2;i<=30;i++) foe.push({bot:true,role:'fighter',name:teamName(enemy)+' Bot '+i});
-            mine.forEach((d,i)=>{ const e=new Entity(playerTeam,d.bot,d.role,d.name),sp=clampToIsland({x:BASES[playerTeam].x+off[i][0],z:BASES[playerTeam].z+off[i][1]},PLAYER_R+2); e.placeAt(sp.x,sp.z); players.push(e); if(!d.bot) human=e; });
+            mine.forEach((d,i)=>{ const e=new Entity(playerTeam,d.bot,d.role,d.name); let sp;
+                if(i===0) sp=clampToIsland({x:BASES[playerTeam].x,z:BASES[playerTeam].z},PLAYER_R+2);   // you start at your base centre
+                else { const a=i*2.39996+1.1,rr=26+i*5.5; sp=clampToIsland({x:BASES[playerTeam].x+Math.cos(a)*rr,z:BASES[playerTeam].z+Math.sin(a)*rr},PLAYER_R+2); }
+                e.placeAt(sp.x,sp.z); players.push(e); if(!d.bot) human=e; });
             foe.forEach((d,i)=>{ const e=new Entity(enemy,d.bot,d.role,d.name),a=i*2.39996+1.1,rr=26+i*5.5,   // phyllotaxis scatter so the horde spreads around its base
                 sp=clampToIsland({x:BASES[enemy].x+Math.cos(a)*rr,z:BASES[enemy].z+Math.sin(a)*rr},PLAYER_R+2); e.placeAt(sp.x,sp.z); players.push(e); });
             assignBuddies();
@@ -1027,7 +1031,12 @@
         function threatLevel(){ if(!human) return 0; const d=Math.hypot(human.x-BASES[enemyTeam].x, human.z-BASES[enemyTeam].z); return Math.max(0,Math.min(1,1-d/THREAT_RANGE)); }
         function manageDefenders(){ const want=30+Math.floor(threatLevel()*40); let defs=players.filter(p=>p.team===enemyTeam).length; const before=defs;
             while(defs<want && defs<MAX_RED){ const e=new Entity(enemyTeam,true,'fighter',teamName(enemyTeam)+' Defender'); e.reinforce=true; const sp=clampToIsland({x:BASES[enemyTeam].x+((defs*41)%70-35),z:BASES[enemyTeam].z+(defs%2?30:-30)},PLAYER_R+2); e.placeAt(sp.x,sp.z);
-                players.push(e); defs++; spawnEffect(e.x,e.y+BODY_OFF,e.z,0x66cf66,6,36,0.45); } if(defs!==before) assignBuddies(); }
+                players.push(e); defs++; spawnEffect(e.x,e.y+BODY_OFF,e.z,0x66cf66,6,36,0.45); }
+            // match the player's team to the enemy so you're never outnumbered — allies rally from your base
+            let allies=players.filter(p=>p.team===playerTeam).length; const beforeA=allies;
+            while(allies<defs && allies<MAX_RED){ const a=new Entity(playerTeam,true,'fighter',teamName(playerTeam)+' Reinforcement'); a.reinforce=true; const sp=clampToIsland({x:BASES[playerTeam].x+((allies*41)%70-35),z:BASES[playerTeam].z+(allies%2?30:-30)},PLAYER_R+2); a.placeAt(sp.x,sp.z);
+                players.push(a); allies++; spawnEffect(a.x,a.y+BODY_OFF,a.z,0x6bb0ff,6,36,0.45); }
+            if(defs!==before||allies!==beforeA) assignBuddies(); }
 
         // ===================== BOT AI =====================
         function updateBot(e,dt){ const enemyFlag=e.team==='red'?flags.blue:flags.red; const mv={x:0,z:0}; let aimTarget=null, actingRunner=false;
