@@ -385,6 +385,12 @@
         // ===================== WORLD OBJECTS =====================
         const OBSTACLES=[];
         const TREE_SCALE=4;   // trees are 4x taller / bigger
+        // thousands of trees + houses are drawn as InstancedMesh (a few draw calls) — collected here, built once at the end
+        const houses=[], treePlace=[], villageCenters=[];
+        const HOUSE_COLS=[0xefe2c0,0xe9dab6,0xdccaa4,0xcfc0a2,0xc4b596,0xe4d4ba,0xd2b48c,0xb9a888];
+        function pushHouse(x,z,s,seed){ if(!pointInIsland(x,z)) return; const y=terrainH(x,z); if(y<0.7) return;
+            houses.push({x:x,z:z,s:s,hgt:0.85+(seed%5)*0.22,yaw:(seed%4)*(Math.PI/2)+((seed%7)-3)*0.07,col:HOUSE_COLS[seed%HOUSE_COLS.length]});
+            OBSTACLES.push({x:x,z:z,r:5.2*s}); }
         function plantTree(x,z,palm,parent){ const y=terrainH(x,z); const host=parent||scene; const TS=TREE_SCALE;
             const trunk=new THREE.Mesh(G.trunk,M.trunk); trunk.position.set(x,y+8*TS,z); trunk.scale.set(TS,TS,TS); trunk.castShadow=true; host.add(trunk);
             if(palm){ const top=new THREE.Mesh(G.palmTop,M.leaf); top.position.set(x,y+17*TS,z); top.scale.set(1.6*TS,0.8*TS,1.6*TS); top.castShadow=true; host.add(top); }
@@ -393,17 +399,35 @@
             if(!pointInIsland(x,z)) continue; plantTree(x,z,false); OBSTACLES.push({x:x,z:z,r:9}); } }
         // a real village: a grid of 4x-scale houses with walkable street gaps + per-building collision
         function villageLabel(name,x,z){ const lab=makeLabel(name); lab.scale.set(232,58,1); lab.position.set(x,terrainH(x,z)+96,z); scene.add(lab); }
-        function buildVillage(v){ const pos=settleInside(toWorld(v.xn,v.zn),PLAYER_R+6);
-            if(v.name==='Jozani'){ plantForest(pos.x,pos.z,720,90,3); villageLabel(v.name,pos.x,pos.z); return; }   // Jozani is a forest you walk through
-            const town=v.name==='Stone Town'; const cols=town?5:4, rows=town?4:4, cell=94; const wallMats=[M.wall,M.concrete,M.concreteDk];
-            for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){ const seed=r*7+c*13+v.name.length;
-                const wx=pos.x+(c-(cols-1)/2)*cell+((seed%5)-2)*3, wz=pos.z+(r-(rows-1)/2)*cell+((seed%7)-3)*3;
-                if(!pointInIsland(wx,wz)) continue; const wy=terrainH(wx,wz); if(wy<0.6) continue;   // skip cells that fall into the sea
-                const s=3.3+(seed%6)*0.32, hgt=0.9+(seed%4)*0.2, yaw=(seed%4)*(Math.PI/2)+((seed%3)-1)*0.1, bh=9*s*1.18*hgt;
-                const bb=new THREE.Mesh(G.hutBody,wallMats[seed%3]); bb.scale.set(s,s*1.18*hgt,s); bb.position.set(wx,wy+bh/2,wz); bb.rotation.y=yaw; bb.castShadow=true; bb.receiveShadow=true; scene.add(bb);
-                const rf=new THREE.Mesh(G.hutRoof,M.roof); rf.scale.set(s,s,s); rf.position.set(wx,wy+bh+3.4*s,wz); rf.rotation.y=Math.PI/4+yaw; rf.castShadow=true; scene.add(rf);
-                OBSTACLES.push({x:wx,z:wz,r:5.6*s}); }
+        // a real town: a dense street grid of mixed small & large houses, plus a thinning ring of outskirt houses
+        function buildVillage(v){ const pos=settleInside(toWorld(v.xn,v.zn),PLAYER_R+6); villageCenters.push(pos);
+            if(v.name==='Jozani'){ plantForest(pos.x,pos.z,900,150,3); villageLabel(v.name,pos.x,pos.z); return; }   // Jozani is a forest you walk through
+            const town=v.name==='Stone Town'; const cols=town?13:11, rows=town?12:10, cell=176;
+            for(let r=0;r<rows;r++) for(let c=0;c<cols;c++){ const seed=r*13+c*7+v.name.length*3;
+                if(seed%11===0) continue;   // gaps make obvious cross-streets & little plazas
+                const wx=pos.x+(c-(cols-1)/2)*cell+((seed%5)-2)*7, wz=pos.z+(r-(rows-1)/2)*cell+((seed%7)-3)*7;
+                const s=(seed%3===0)?(4+(seed%5)*0.5):(7+(seed%6)*0.9);   // mix: some small (4-6), many big (7-12)
+                pushHouse(wx,wz,s,seed); }
+            for(let i=0;i<(town?80:54);i++){ const a=i*2.39996+v.name.length, rr=cell*(town?6.4:5.2)*(0.46+(i%7)*0.1);   // outskirts thin out so you sense the town before you reach it
+                pushHouse(pos.x+Math.cos(a)*rr,pos.z+Math.sin(a)*rr,4+(i%4),i*5+11); }
             villageLabel(v.name,pos.x,pos.z); }
+        // build all collected houses as two InstancedMeshes (bodies tinted per-instance, roofs shared)
+        function buildHouseInstances(){ const n=houses.length; if(!n) return;
+            const bodyMat=M.wall.clone(); bodyMat.color.setHex(0xffffff);   // instanceColor drives the hue; the plaster map adds grain
+            const bodyIM=new THREE.InstancedMesh(G.hutBody,bodyMat,n), roofIM=new THREE.InstancedMesh(G.hutRoof,M.roof,n);
+            bodyIM.castShadow=false; bodyIM.receiveShadow=true; roofIM.castShadow=false; bodyIM.frustumCulled=false; roofIM.frustumCulled=false;
+            const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),p=new THREE.Vector3(),sc=new THREE.Vector3(),col=new THREE.Color();
+            for(let i=0;i<n;i++){ const h=houses[i],y=terrainH(h.x,h.z),bh=9*h.s*1.18*h.hgt;
+                q.setFromAxisAngle(up,h.yaw); p.set(h.x,y+bh/2,h.z); sc.set(h.s,h.s*1.18*h.hgt,h.s); mtx.compose(p,q,sc); bodyIM.setMatrixAt(i,mtx); bodyIM.setColorAt(i,col.setHex(h.col));
+                q.setFromAxisAngle(up,Math.PI/4+h.yaw); p.set(h.x,y+bh+3.4*h.s,h.z); sc.set(h.s,h.s,h.s); mtx.compose(p,q,sc); roofIM.setMatrixAt(i,mtx); }
+            bodyIM.instanceMatrix.needsUpdate=true; if(bodyIM.instanceColor) bodyIM.instanceColor.needsUpdate=true; roofIM.instanceMatrix.needsUpdate=true; scene.add(bodyIM); scene.add(roofIM); }
+        // build all collected trees as InstancedMeshes (trunk for all, canopies for leafy, top for palms)
+        function buildTreeInstances(){ const all=treePlace, leafy=all.filter(t=>!t.palm), palms=all.filter(t=>t.palm);
+            function build(geo,mat,list,oy,sxz,sy){ if(!list.length) return; const im=new THREE.InstancedMesh(geo,mat,list.length); im.castShadow=false; im.receiveShadow=false; im.frustumCulled=false;
+                const mtx=new THREE.Matrix4(),q=new THREE.Quaternion(),up=new THREE.Vector3(0,1,0),p=new THREE.Vector3(),sc=new THREE.Vector3();
+                for(let i=0;i<list.length;i++){ const t=list[i],y=terrainH(t.x,t.z); q.setFromAxisAngle(up,(t.x*0.13+t.z*0.07)%6.283); p.set(t.x,y+oy*t.s,t.z); sc.set(sxz*t.s,sy*t.s,sxz*t.s); mtx.compose(p,q,sc); im.setMatrixAt(i,mtx); }
+                im.instanceMatrix.needsUpdate=true; scene.add(im); }
+            build(G.trunk,M.trunk,all,8,1,1); build(G.canopy,M.leaf,leafy,22,1,1); build(G.canopy2,M.leafDk,leafy,30,1,1); build(G.palmTop,M.leaf,palms,17,1.6,0.8); }
         function buildRock(nx,nz){ const pos=settleInside(toWorld(nx,nz),PLAYER_R+4),y=terrainH(pos.x,pos.z); const grp=new THREE.Group(); grp.position.set(pos.x,y,pos.z);
             const mat=M.rock.clone(); for(let i=0;i<3;i++){ const m=new THREE.Mesh(G.rock,mat),s=0.7+i*0.45; m.scale.set(s,s*0.75,s); m.position.set((i-1)*6,4*s,(i%2)*5-2); m.rotation.set(i,i*1.7,i*0.6); grp.add(m); } grp.scale.set(3.5,3.5,3.5); castAll(grp,true); scene.add(grp); OBSTACLES.push({x:pos.x,z:pos.z,y:y,r:42,grp:grp,mats:[mat],baseCols:[mat.color.clone()],hp:30,maxhp:30,kind:'rock'}); }
         function buildBase(team,nrm){ const pos=settleInside(toWorld(nrm.xn,nrm.zn),BASE_R+6),y=terrainH(pos.x,pos.z); const grp=new THREE.Group(); grp.position.set(pos.x,y,pos.z);
@@ -412,6 +436,14 @@
             const lab=makeLabel(team==='red'?'RED BASE':'BLUE BASE'); lab.position.set(0,58,0); grp.add(lab); scene.add(grp); return {x:pos.x,z:pos.z,y:y}; }
         function buildFlagMesh(team){ const grp=new THREE.Group(); const pole=new THREE.Mesh(G.pole,M.gun); pole.position.y=18; grp.add(pole); const cloth=new THREE.Mesh(G.cloth,team==='red'?M.redClothA:M.blueClothA); cloth.position.set(9,29,0); grp.add(cloth); scene.add(grp); return grp; }
         VILLAGES.forEach(buildVillage); ROCKS.forEach(r=>buildRock(r[0],r[1])); plantForest(-750,2700,560,70,7);
+        const _bB=toWorld(BLUE_BASE_NORM.xn,BLUE_BASE_NORM.zn), _rB=toWorld(RED_BASE_NORM.xn,RED_BASE_NORM.zn);   // base centres (bases are built later)
+        (function dottedHouses(){ let n=0,guard=0; while(n<150 && guard<1800){ guard++; const x=gx0+Math.random()*BBOX_W,z=gz0+Math.random()*ISLAND_LENGTH; if(!pointInIsland(x,z)) continue;
+            if(Math.hypot(x-_bB.x,z-_bB.z)<260||Math.hypot(x-_rB.x,z-_rB.z)<260) continue; pushHouse(x,z,4+(guard%6),guard*3+5); n++; } })();   // lone dwellings scattered across the wild
+        (function scatterTrees(){ let n=0,guard=0; const TARGET=isTouch?6000:11000; while(n<TARGET && guard<TARGET*5){ guard++; const x=gx0+Math.random()*BBOX_W,z=gz0+Math.random()*ISLAND_LENGTH; if(!pointInIsland(x,z)) continue;
+            const y=terrainH(x,z); if(y<1.0||y>150) continue; if(Math.hypot(x-_bB.x,z-_bB.z)<170||Math.hypot(x-_rB.x,z-_rB.z)<170) continue;
+            let nc=false; for(const vc of villageCenters){ const dx=x-vc.x,dz=z-vc.z; if(dx*dx+dz*dz<230*230){ nc=true; break; } } if(nc&&(guard%4)!==0) continue;   // thin trees in town cores, keep streets readable
+            treePlace.push({x:x,z:z,s:TREE_SCALE*(0.7+((guard*13)%70)/100),palm:(y<6)}); n++; } })();   // blanket the map so there's little open land
+        buildHouseInstances(); buildTreeInstances();
         // taller-than-player buildings for cover (block movement, sight and bullets)
         function buildCover(nx,nz,big){ const p=settleInside(toWorld(nx,nz),PLAYER_R+12),y=terrainH(p.x,p.z); const grp=new THREE.Group(); grp.position.set(p.x,y,p.z);
             const bodyMat=M.concrete.clone(),roofMat=M.concreteDk.clone();
