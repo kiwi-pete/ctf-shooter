@@ -60,9 +60,9 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
   boots; carries a rifle (the pistol) and a **shoulder-mounted rocket launcher**.
 - **Pistol bullets** — very fast (≈4800 u/s, dodgeable at range), shooting snaps to the
   first-person bullet-cam.
-- **5× scope zoom** — **double-click** (desktop) or **double-tap FIRE** (touch) to look down
-  a gun scope: the view magnifies **5×** with a scope reticle, and you keep aiming as normal.
-  Double-click / double-tap again to zoom back out.
+- **5× scope zoom** — **double-click** (desktop) or **double-tap FIRE** (touch) to zoom in
+  **5×** (full-screen, no scope vignette) with a **large crosshair**; aim sensitivity drops
+  **50%** while zoomed for steady long-range aiming. Double-click / double-tap again to zoom out.
 - **Rocket launcher (G / 🚀)** — **unlimited ammo, one shot every 10 s**. Fired from
   the shoulder; the rocket now **flies dead straight** (no arc) and reaches **3× as far**,
   **detonating with an area blast** that tags every enemy nearby. HUD shows the reload

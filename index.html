@@ -62,12 +62,11 @@
         #crosshair::before, #crosshair::after { content:''; position:absolute; background:rgba(255,255,255,0.85); box-shadow:0 0 3px rgba(0,0,0,0.6); }
         #crosshair::before { left:50%; top:0; width:2px; height:100%; transform:translateX(-50%); }
         #crosshair::after { top:50%; left:0; height:2px; width:100%; transform:translateY(-50%); }
+        /* scope = just a big crosshair on the zoomed (full-screen) view — no dark circle */
         #scope { position:absolute; inset:0; display:none; pointer-events:none; z-index:5; }
-        #scope::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 0 30%, rgba(0,0,0,0.18) 33%, rgba(0,0,0,0.55) 36%, rgba(0,0,0,0.96) 41%); }
-        #scope-ring { position:absolute; top:50%; left:50%; width:72vmin; height:72vmin; transform:translate(-50%,-50%); border-radius:50%; border:3px solid rgba(0,0,0,0.85); box-shadow:0 0 0 1px rgba(255,255,255,0.25) inset; }
-        #scope-h { position:absolute; top:50%; left:14%; width:72%; height:1px; transform:translateY(-50%); background:rgba(10,10,10,0.9); }
-        #scope-v { position:absolute; left:50%; top:14%; height:72%; width:1px; transform:translateX(-50%); background:rgba(10,10,10,0.9); }
-        #scope-dot { position:absolute; top:50%; left:50%; width:5px; height:5px; transform:translate(-50%,-50%); border-radius:50%; background:rgba(220,40,40,0.95); box-shadow:0 0 4px rgba(0,0,0,0.7); }
+        #scope-h { position:absolute; top:50%; left:50%; width:150px; height:4px; transform:translate(-50%,-50%); background:rgba(255,255,255,0.92); box-shadow:0 0 5px rgba(0,0,0,0.85); }
+        #scope-v { position:absolute; top:50%; left:50%; width:4px; height:150px; transform:translate(-50%,-50%); background:rgba(255,255,255,0.92); box-shadow:0 0 5px rgba(0,0,0,0.85); }
+        #scope-dot { position:absolute; top:50%; left:50%; width:9px; height:9px; transform:translate(-50%,-50%); border-radius:50%; background:rgba(220,40,40,0.95); box-shadow:0 0 5px rgba(0,0,0,0.85); }
         #compass { position:absolute; top:14px; left:14px; padding:6px 12px; border-radius:10px; font-size:12px; font-weight:600; color:#cbd5e1;
             background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.07); }
         #compass b { color:#fbbf24; }
@@ -152,7 +151,7 @@
         <div id="compass">Heading: <b id="heading">S</b></div>
         <canvas id="minimap" width="120" height="216"></canvas>
         <div id="crosshair"></div>
-        <div id="scope"><div id="scope-ring"></div><div id="scope-h"></div><div id="scope-v"></div><div id="scope-dot"></div></div>
+        <div id="scope"><div id="scope-h"></div><div id="scope-v"></div><div id="scope-dot"></div></div>
         <div id="damage"></div>
         <div id="hint"><span>WASD</span> move · <span>Mouse</span> look · <span>Space/Click</span> shoot · <span>R</span> rocket · <span>E</span> tank · <span>Shift</span> jump · <span>C</span> crouch · <span>Esc</span> release</div>
     </div>
@@ -895,7 +894,7 @@
         const keys={f:false,b:false,l:false,r:false,up:false,down:false}; let firing=false, gDown=false, spaceDown=false, cDown=false, jDown=false, mDown=false, iDown=false, bDown=false, eDown=false, key3Held=false;
         let running=false, gameOver=false, viewMode='third', fpvBullet=null, fpvTimer=0, inventoryOpen=false, scoped=false;
         const elScope=document.getElementById('scope');
-        function setScope(on){ if(on&&(!human||human.inCar||human.inDrone||human.inGun||human.tag>0)) return; scoped=on; camera.fov=on?ZOOM_FOV:BASE_FOV; camera.updateProjectionMatrix(); elScope.style.display=on?'block':'none'; if(on) toast('🔭 5× scope — double-'+(isTouch?'tap FIRE':'click')+' to zoom out'); }
+        function setScope(on){ if(on&&(!human||human.inCar||human.inDrone||human.inGun||human.tag>0)) return; scoped=on; camera.fov=on?ZOOM_FOV:BASE_FOV; camera.updateProjectionMatrix(); elScope.style.display=on?'block':'none'; const ch=document.getElementById('crosshair'); if(ch) ch.style.display=on?'none':'block'; if(on) toast('🔭 5× scope — double-'+(isTouch?'tap FIRE':'click')+' to zoom out'); }
         function toggleScope(){ setScope(!scoped); }
         let playerTeam='blue', enemyTeam='red';   // 'blue' = north (top), 'red' (shown as GREEN) = south (bottom) — chosen on the start screen
         let gems=0, nearArmoury=false; const SHOP={ helmet:false, boots:false, rapid:false };   // per-match wallet + purchases (human only)
@@ -951,7 +950,7 @@
         elPause.addEventListener('click', startGame);
         document.addEventListener('pointerlockchange', ()=>{ if(isTouch) return; running=(document.pointerLockElement===renderer.domElement);
             if(running){ elStart.classList.add('hidden'); elPause.classList.add('hidden'); } else if(!gameOver){ closeInventory(); elStart.classList.add('hidden'); elPause.classList.remove('hidden'); } });
-        document.addEventListener('mousemove', e=>{ if(!running||!human||isTouch) return; const ms=(human.weapon==='mg')?0.5:1; human.yaw-=e.movementX*SENS_YAW*ms; human.pitch-=e.movementY*SENS_PITCH*ms; human.pitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,human.pitch)); });
+        document.addEventListener('mousemove', e=>{ if(!running||!human||isTouch) return; const ms=((human.weapon==='mg')?0.5:1)*(scoped?0.5:1); human.yaw-=e.movementX*SENS_YAW*ms; human.pitch-=e.movementY*SENS_PITCH*ms; human.pitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,human.pitch)); });
         let lastFireDown=-10;
         document.addEventListener('mousedown', e=>{ if(running&&e.button===0&&!isTouch){ firing=true; if(timeNow-lastFireDown<0.32) toggleScope(); lastFireDown=timeNow; } });
         document.addEventListener('mouseup', e=>{ if(e.button===0) firing=false; });
@@ -1003,7 +1002,7 @@
             moveZone.addEventListener('pointerup',endMove); moveZone.addEventListener('pointercancel',endMove);
             let lookStart={x:0,y:0};
             lookZone.addEventListener('pointerdown', e=>{ if(lookPtr!==null) return; lookPtr=e.pointerId; lookLast={x:e.clientX,y:e.clientY}; lookStart={x:e.clientX,y:e.clientY}; try{lookZone.setPointerCapture(e.pointerId);}catch(_){} e.preventDefault(); });
-            lookZone.addEventListener('pointermove', e=>{ if(e.pointerId!==lookPtr||!human) return; const dx=e.clientX-lookLast.x,dy=e.clientY-lookLast.y; lookLast={x:e.clientX,y:e.clientY}; const ms=(human.weapon==='mg')?0.5:1;
+            lookZone.addEventListener('pointermove', e=>{ if(e.pointerId!==lookPtr||!human) return; const dx=e.clientX-lookLast.x,dy=e.clientY-lookLast.y; lookLast={x:e.clientX,y:e.clientY}; const ms=((human.weapon==='mg')?0.5:1)*(scoped?0.5:1);
                 human.yaw-=dx*0.005*ms;
                 if(human.inDrone){ touchVert=Math.max(-1,Math.min(1,(lookStart.y-e.clientY)/110)); }   // right thumb above/below its start = climb/dive
                 else { human.pitch-=dy*0.005*ms; human.pitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,human.pitch)); } });
@@ -1016,7 +1015,7 @@
             // firing keeps going as the finger moves (no accidental stop on drift); the right look-zone still aims too.
             (function(){ const el=document.getElementById('btn-shoot'); let sp=null, last={x:0,y:0}, lastTap=-10;
                 el.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); if(sp!==null) return; sp=e.pointerId; last={x:e.clientX,y:e.clientY}; el.classList.add('press'); firing=true; if(timeNow-lastTap<0.32) toggleScope(); lastTap=timeNow; try{el.setPointerCapture(e.pointerId);}catch(_){} });
-                el.addEventListener('pointermove', e=>{ if(e.pointerId!==sp||!human) return; const dx=e.clientX-last.x,dy=e.clientY-last.y; last={x:e.clientX,y:e.clientY}; const ms=(human.weapon==='mg')?0.5:1; human.yaw-=dx*0.005*ms; human.pitch-=dy*0.005*ms; human.pitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,human.pitch)); });
+                el.addEventListener('pointermove', e=>{ if(e.pointerId!==sp||!human) return; const dx=e.clientX-last.x,dy=e.clientY-last.y; last={x:e.clientX,y:e.clientY}; const ms=((human.weapon==='mg')?0.5:1)*(scoped?0.5:1); human.yaw-=dx*0.005*ms; human.pitch-=dy*0.005*ms; human.pitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,human.pitch)); });
                 const up=e=>{ if(e.pointerId!==sp) return; sp=null; el.classList.remove('press'); firing=false; }; el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up); })();
             bind('btn-rocket', ()=>{ if(human&&running) fireRocket(human); });
             bind('btn-jump', ()=>{ if(running) jump(); });
