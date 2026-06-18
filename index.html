@@ -699,7 +699,12 @@
             function bind(id,onDown,onUp){ const el=document.getElementById(id);
                 el.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); el.classList.add('press'); onDown&&onDown(); });
                 const up=e=>{ el.classList.remove('press'); onUp&&onUp(); }; el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up); el.addEventListener('pointerleave',up); }
-            bind('btn-shoot', ()=>{firing=true;}, ()=>{firing=false;});
+            // FIRE: press-and-hold to shoot AND slide the same thumb to aim. The pointer is captured so
+            // firing keeps going as the finger moves (no accidental stop on drift); the right look-zone still aims too.
+            (function(){ const el=document.getElementById('btn-shoot'); let sp=null, last={x:0,y:0};
+                el.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); if(sp!==null) return; sp=e.pointerId; last={x:e.clientX,y:e.clientY}; el.classList.add('press'); firing=true; try{el.setPointerCapture(e.pointerId);}catch(_){} });
+                el.addEventListener('pointermove', e=>{ if(e.pointerId!==sp||!human) return; const dx=e.clientX-last.x,dy=e.clientY-last.y; last={x:e.clientX,y:e.clientY}; const ms=(human.weapon==='mg')?0.5:1; human.yaw-=dx*0.005*ms; human.pitch-=dy*0.005*ms; human.pitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,human.pitch)); });
+                const up=e=>{ if(e.pointerId!==sp) return; sp=null; el.classList.remove('press'); firing=false; }; el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up); })();
             bind('btn-rocket', ()=>{ if(human&&running) fireRocket(human); });
             bind('btn-jump', ()=>{ if(running) jump(); });
             bind('btn-crouch', ()=>{ if(human&&running) human.crouch=!human.crouch; });
