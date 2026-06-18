@@ -62,6 +62,12 @@
         #crosshair::before, #crosshair::after { content:''; position:absolute; background:rgba(255,255,255,0.85); box-shadow:0 0 3px rgba(0,0,0,0.6); }
         #crosshair::before { left:50%; top:0; width:2px; height:100%; transform:translateX(-50%); }
         #crosshair::after { top:50%; left:0; height:2px; width:100%; transform:translateY(-50%); }
+        #scope { position:absolute; inset:0; display:none; pointer-events:none; z-index:5; }
+        #scope::before { content:''; position:absolute; inset:0; background:radial-gradient(circle at 50% 50%, rgba(0,0,0,0) 0 30%, rgba(0,0,0,0.18) 33%, rgba(0,0,0,0.55) 36%, rgba(0,0,0,0.96) 41%); }
+        #scope-ring { position:absolute; top:50%; left:50%; width:72vmin; height:72vmin; transform:translate(-50%,-50%); border-radius:50%; border:3px solid rgba(0,0,0,0.85); box-shadow:0 0 0 1px rgba(255,255,255,0.25) inset; }
+        #scope-h { position:absolute; top:50%; left:14%; width:72%; height:1px; transform:translateY(-50%); background:rgba(10,10,10,0.9); }
+        #scope-v { position:absolute; left:50%; top:14%; height:72%; width:1px; transform:translateX(-50%); background:rgba(10,10,10,0.9); }
+        #scope-dot { position:absolute; top:50%; left:50%; width:5px; height:5px; transform:translate(-50%,-50%); border-radius:50%; background:rgba(220,40,40,0.95); box-shadow:0 0 4px rgba(0,0,0,0.7); }
         #compass { position:absolute; top:14px; left:14px; padding:6px 12px; border-radius:10px; font-size:12px; font-weight:600; color:#cbd5e1;
             background:rgba(15,23,42,0.5); border:1px solid rgba(255,255,255,0.07); }
         #compass b { color:#fbbf24; }
@@ -146,6 +152,7 @@
         <div id="compass">Heading: <b id="heading">S</b></div>
         <canvas id="minimap" width="120" height="216"></canvas>
         <div id="crosshair"></div>
+        <div id="scope"><div id="scope-ring"></div><div id="scope-h"></div><div id="scope-v"></div><div id="scope-dot"></div></div>
         <div id="damage"></div>
         <div id="hint"><span>WASD</span> move · <span>Mouse</span> look · <span>Space/Click</span> shoot · <span>R</span> rocket · <span>E</span> tank · <span>Shift</span> jump · <span>C</span> crouch · <span>Esc</span> release</div>
     </div>
@@ -194,7 +201,7 @@
         // ===================== CONFIG =====================
         const ISLAND_LENGTH = 18000, BBOX_W = 9000;
         const RUN_SPEED = 167;
-        const BULLET_SPEED = 2400, BULLET_R = 3, BULLET_RANGE = 3280;   // very fast, dart-like
+        const BULLET_SPEED = 4800, BULLET_R = 3, BULLET_RANGE = 3280;   // 2× speed — very fast, dart-like
         // Rocket launcher: unlimited ammo, ONE shot per 10s, lobbed in a gravity arc
         const ROCKET_SPEED = 360, ROCKET_VY0 = 200, ROCKET_GRAV = 160, ROCKET_MAXDIST = 1800, ROCKET_BLAST = 80, ROCKET_CD = 10, ROCKET_R = 5;  // ~2× range, higher arc
         const PLAYER_R = 9, BODY_OFF = 11, GUN_Y = 13, EYE_Y = 19;
@@ -211,7 +218,7 @@
         const WALL_TIME = 2.5, PILLBOX_TIME = 5, BUILD_DIST = 30, SNAP_RANGE = 55, TURRET_RANGE = 380, TURRET_CD = 0.7;   // buildable defenses
         const PICKUP_DIST = 18, BASE_R = 44, WIN_SCORE = 3, TAG_TIME = 1.0, FLAG_DROP_TIME = 5.0;
         // Increment 3 — per-match gem economy + soldier-themed armoury shop (human player only)
-        const GEM_COUNT = 16, GEM_PICK_R = 26, GEM_VALUE = 1, GEM_TAG = 3, GEM_CAPTURE = 10;
+        const GEM_COUNT = 16, GEM_PICK_R = 26, GEM_VALUE = 1, GEM_TAG = 1, GEM_CAPTURE = 10;   // +1 gem per enemy tagged
         const ARMOURY_R = 92;   // walk this close to a village armoury to open the pit-stop shop
         const SHOP_ITEMS = [
             { key:'helmet', name:'Combat Helmet', cost:5,  blurb:'Look the part',   hot:'7', icon:'🪖' },
@@ -221,6 +228,7 @@
         const BOOTS_SPEED_MULT = 1.5, RAPID_PISTOL_CD = 0.2, RAPID_MG_MULT = 0.55;
         const CAM_DIST = 56, CAM_HEIGHT = 64;
         const SENS_YAW = 0.0023, SENS_PITCH = 0.0021, PITCH_MIN = -0.95, PITCH_MAX = 0.95;
+        const BASE_FOV = 62, ZOOM_FOV = 13.7;   // 5× gun-scope zoom (double-tap/click to toggle)
         const SEA_Y = -9;
 
         const ISLAND_NORM = [
@@ -255,7 +263,7 @@
         // ===================== SCENE =====================
         const SKY=0x8fc8ec;
         const scene=new THREE.Scene(); scene.background=new THREE.Color(SKY); scene.fog=new THREE.Fog(SKY, ISLAND_LENGTH*0.22, ISLAND_LENGTH*0.92);
-        const camera=new THREE.PerspectiveCamera(62, innerWidth/innerHeight, 1, ISLAND_LENGTH*2.3); camera.position.set(0,120,0);
+        const camera=new THREE.PerspectiveCamera(BASE_FOV, innerWidth/innerHeight, 1, ISLAND_LENGTH*2.3); camera.position.set(0,120,0);
         const renderer=new THREE.WebGLRenderer({antialias:true}); renderer.setPixelRatio(Math.min(devicePixelRatio,2)); renderer.setSize(innerWidth,innerHeight);
         renderer.shadowMap.enabled=true; renderer.shadowMap.type=THREE.PCFSoftShadowMap;
         renderer.outputEncoding=THREE.sRGBEncoding; renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=0.9;
@@ -660,7 +668,7 @@
             placeAt(x,z){ this.x=x; this.z=z; this.y=terrainH(x,z); this.spawn={x:x,z:z}; }
             doTag(){ if(this.tag>0) return; this.tag=TAG_TIME; this.vx=this.vz=this.vy=0; this.airborne=false;
                 if(this.carrying){ const fl=this.carrying; fl.state='DROPPED'; fl.drop=FLAG_DROP_TIME; fl.carrier=null; fl.x=this.x; fl.z=this.z; this.carrying=null; }
-                spawnEffect(this.x,this.y+BODY_OFF,this.z,this.team==='red'?0x66cf66:0x6bb0ff,6,34,0.45); if(this===human){ flashDamage(); viewMode='third'; fpvBullet=null; } }
+                spawnEffect(this.x,this.y+BODY_OFF,this.z,this.team==='red'?0x66cf66:0x6bb0ff,6,34,0.45); if(this===human){ flashDamage(); viewMode='third'; fpvBullet=null; setScope(false); } }
         }
         const players=[]; let human=null;
         function spawnOffsets(){ return [[0,0],[30,22],[-30,22],[0,40],[34,-8],[-34,-8]]; }
@@ -723,13 +731,13 @@
         const emplacements=[[300,-3000],[0,-1200],[300,3000]].map(h=>{ const sp=clampToIsland({x:h[0],z:h[1]},PLAYER_R+4), y=terrainH(sp.x,sp.z); const mesh=buildEmplacement(); mesh.position.set(sp.x,y,sp.z);
             const lab=makeLabel('🚀 ROCKET NEST'); lab.scale.set(200,40,1); lab.position.set(sp.x,y+58,sp.z); scene.add(lab); return {x:sp.x,z:sp.z,y:y,mesh:mesh,cd:0}; });
         function nearestEmplacement(){ if(!human) return null; let best=null,bd=GUN_NEST_ENTER*GUN_NEST_ENTER; for(const g of emplacements){ const d=(human.x-g.x)**2+(human.z-g.z)**2; if(d<bd){ bd=d; best=g; } } return best; }
-        function enterGun(g){ human.inGun=true; human.gun=g; human.x=g.x; human.z=g.z; human.y=g.y; human.vx=human.vz=human.vy=0; human.airborne=false; human.crouch=false; firing=false; toast('🚀 Manning the auto rocket launcher — aim & FIRE · E to get off'); }
+        function enterGun(g){ setScope(false); human.inGun=true; human.gun=g; human.x=g.x; human.z=g.z; human.y=g.y; human.vx=human.vz=human.vy=0; human.airborne=false; human.crouch=false; firing=false; toast('🚀 Manning the auto rocket launcher — aim & FIRE · E to get off'); }
         function exitGun(){ const g=human.gun; human.inGun=false; human.gun=null; if(g){ const sp=clampToIsland({x:g.x-Math.sin(human.yaw)*24,z:g.z-Math.cos(human.yaw)*24},PLAYER_R+2); human.x=sp.x; human.z=sp.z; human.y=terrainH(sp.x,sp.z); } human.vx=human.vz=human.vy=0; firing=false; }
         function updateGun(dt){ if(human.tag>0){ exitGun(); return; } const g=human.gun; human.x=g.x; human.z=g.z; human.y=g.y; human.vx=human.vz=0;
             if(g.cd>0) g.cd-=dt; if(firing&&g.cd<=0){ fireRocket(human,true,true,2.2,false,false,5); human.recoil=1; g.cd=1.0; } }   // auto rocket launcher: one straight rocket/sec, 5× range
         function toggleCar(){ if(!human||!running) return; if(human.inCar){ exitCar(); return; } if(human.inGun){ exitGun(); return; } if(human.tag>0) return;
             if(Math.hypot(human.x-car.x,human.z-car.z)<CAR_ENTER_DIST){ enterCar(); return; } const g=nearestEmplacement(); if(g) enterGun(g); }
-        function enterCar(){ human.inCar=true; car.yaw=human.yaw; car.vx=human.vx=0; car.vz=human.vz=0; toast('🛡 In the tank — WASD drive · FIRE = long-range cannon · E to get out'); }
+        function enterCar(){ setScope(false); human.inCar=true; car.yaw=human.yaw; car.vx=human.vx=0; car.vz=human.vz=0; toast('🛡 In the tank — WASD drive · FIRE = long-range cannon · E to get out'); }
         function exitCar(){ human.inCar=false; car.vx=car.vz=car.vy=0; car.airborne=false; const px=Math.cos(car.yaw),pz=-Math.sin(car.yaw); const sp=clampToIsland({x:car.x+px*24,z:car.z+pz*24},PLAYER_R+2); human.x=sp.x; human.z=sp.z; human.y=terrainH(sp.x,sp.z); human.vx=human.vz=human.vy=0; human.airborne=false; }
         function updateCar(dt){ const c=car;
             if(human.tag>0){ exitCar(); return; }
@@ -767,7 +775,7 @@
             g._rotors=rotors; g.visible=false; g.castShadow=false; scene.add(g); return g; }
         const drone={active:false,dead:false,x:0,y:0,z:0,vx:0,vy:0,vz:0,yaw:0,battery:0,mesh:buildDroneMesh()};
         function launchDrone(){ if(!human||!running||human.inCar||human.inDrone){ return; } if((human.drones||0)<=0){ toast('No drones — collect one in the field first'); return; }
-            human.drones--; human.inDrone=true; closeInventory(); firing=false;   // clear the launch click so it doesn't instantly detonate
+            human.drones--; human.inDrone=true; closeInventory(); firing=false; setScope(false);   // clear the launch click so it doesn't instantly detonate
             drone.active=true; drone.dead=false; drone.battery=DRONE_BATTERY; drone.yaw=human.yaw;
             drone.x=human.x; drone.z=human.z; drone.y=terrainH(human.x,human.z)+46; drone.vx=drone.vz=drone.vy=0; drone.mesh.visible=true;
             toast('🚁 Drone — WASD fly level · ] up / \\ down (right thumb on touch) · FIRE = detonate · 20s battery'); }
@@ -885,7 +893,10 @@
 
         // ===================== INPUT =====================
         const keys={f:false,b:false,l:false,r:false,up:false,down:false}; let firing=false, gDown=false, spaceDown=false, cDown=false, jDown=false, mDown=false, iDown=false, bDown=false, eDown=false, key3Held=false;
-        let running=false, gameOver=false, viewMode='third', fpvBullet=null, fpvTimer=0, inventoryOpen=false;
+        let running=false, gameOver=false, viewMode='third', fpvBullet=null, fpvTimer=0, inventoryOpen=false, scoped=false;
+        const elScope=document.getElementById('scope');
+        function setScope(on){ if(on&&(!human||human.inCar||human.inDrone||human.inGun||human.tag>0)) return; scoped=on; camera.fov=on?ZOOM_FOV:BASE_FOV; camera.updateProjectionMatrix(); elScope.style.display=on?'block':'none'; if(on) toast('🔭 5× scope — double-'+(isTouch?'tap FIRE':'click')+' to zoom out'); }
+        function toggleScope(){ setScope(!scoped); }
         let playerTeam='blue', enemyTeam='red';   // 'blue' = north (top), 'red' (shown as GREEN) = south (bottom) — chosen on the start screen
         let gems=0, nearArmoury=false; const SHOP={ helmet:false, boots:false, rapid:false };   // per-match wallet + purchases (human only)
         const touchMove={x:0,y:0}; let touchVert=0;   // touchVert: drone climb/dive throttle from the right thumb
@@ -941,7 +952,8 @@
         document.addEventListener('pointerlockchange', ()=>{ if(isTouch) return; running=(document.pointerLockElement===renderer.domElement);
             if(running){ elStart.classList.add('hidden'); elPause.classList.add('hidden'); } else if(!gameOver){ closeInventory(); elStart.classList.add('hidden'); elPause.classList.remove('hidden'); } });
         document.addEventListener('mousemove', e=>{ if(!running||!human||isTouch) return; const ms=(human.weapon==='mg')?0.5:1; human.yaw-=e.movementX*SENS_YAW*ms; human.pitch-=e.movementY*SENS_PITCH*ms; human.pitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,human.pitch)); });
-        document.addEventListener('mousedown', e=>{ if(running&&e.button===0&&!isTouch) firing=true; });
+        let lastFireDown=-10;
+        document.addEventListener('mousedown', e=>{ if(running&&e.button===0&&!isTouch){ firing=true; if(timeNow-lastFireDown<0.32) toggleScope(); lastFireDown=timeNow; } });
         document.addEventListener('mouseup', e=>{ if(e.button===0) firing=false; });
         function key(e,down){ switch(e.code){
             case 'KeyW': case 'ArrowUp': keys.f=down; break; case 'KeyS': case 'ArrowDown': keys.b=down; break;
@@ -1002,8 +1014,8 @@
                 const up=e=>{ el.classList.remove('press'); onUp&&onUp(); }; el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up); el.addEventListener('pointerleave',up); }
             // FIRE: press-and-hold to shoot AND slide the same thumb to aim. The pointer is captured so
             // firing keeps going as the finger moves (no accidental stop on drift); the right look-zone still aims too.
-            (function(){ const el=document.getElementById('btn-shoot'); let sp=null, last={x:0,y:0};
-                el.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); if(sp!==null) return; sp=e.pointerId; last={x:e.clientX,y:e.clientY}; el.classList.add('press'); firing=true; try{el.setPointerCapture(e.pointerId);}catch(_){} });
+            (function(){ const el=document.getElementById('btn-shoot'); let sp=null, last={x:0,y:0}, lastTap=-10;
+                el.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation(); if(sp!==null) return; sp=e.pointerId; last={x:e.clientX,y:e.clientY}; el.classList.add('press'); firing=true; if(timeNow-lastTap<0.32) toggleScope(); lastTap=timeNow; try{el.setPointerCapture(e.pointerId);}catch(_){} });
                 el.addEventListener('pointermove', e=>{ if(e.pointerId!==sp||!human) return; const dx=e.clientX-last.x,dy=e.clientY-last.y; last={x:e.clientX,y:e.clientY}; const ms=(human.weapon==='mg')?0.5:1; human.yaw-=dx*0.005*ms; human.pitch-=dy*0.005*ms; human.pitch=Math.max(PITCH_MIN,Math.min(PITCH_MAX,human.pitch)); });
                 const up=e=>{ if(e.pointerId!==sp) return; sp=null; el.classList.remove('press'); firing=false; }; el.addEventListener('pointerup',up); el.addEventListener('pointercancel',up); })();
             bind('btn-rocket', ()=>{ if(human&&running) fireRocket(human); });
@@ -1131,7 +1143,7 @@
             const moving=(e.vx*e.vx+e.vz*e.vz)>1,sw=moving?Math.sin(timeNow*11+e.x)*0.6:0; g._legs[0].rotation.x=sw; g._legs[1].rotation.x=-sw;
             g.scale.y=(e.crouch)?0.72:1;
             let vis=true; if(e.tag>0&&e!==human) vis=(Math.floor(timeNow*14)%2===0); if(e===human&&(human.inCar||human.inGun)) vis=false; g.visible=vis;
-            if(e===human){ const fpv=(viewMode==='fpv'&&fpvBullet&&bullets.indexOf(fpvBullet)!==-1); g._body.forEach(m=>m.visible=!fpv); }
+            if(e===human){ const fpv=scoped||(viewMode==='fpv'&&fpvBullet&&bullets.indexOf(fpvBullet)!==-1); g._body.forEach(m=>m.visible=!fpv); }
             g._gun.visible=(e.weapon!=='mg'); g._mg.visible=(e.weapon==='mg');
             const rec=Math.max(0,e.recoil||0); g._gun.position.z=7-rec*4; g._gun.rotation.x=rec*0.4; g._mg.position.z=6.5-rec*4; g._mg.rotation.x=rec*0.35; g._arms[0].rotation.x=-1.15+rec*0.3; g._arms[1].rotation.x=-1.15+rec*0.3;
             if(e!==human){   // player's health is the fixed HUD bar instead, so only bots' floating bars are computed
@@ -1140,7 +1152,7 @@
                 const aw=23*Math.max(0,e.armour)/ARMOUR_MAX; g._arFill.scale.x=Math.max(0.001,aw); g._arFill.position.x=-(23-aw)/2;
                 g._hpBg.visible=true; g._hpFill.visible=true; g._arFill.visible=true;
             } else { g._hpBg.visible=false; g._hpFill.visible=false; g._arFill.visible=false; }
-            g._blob.position.set(e.x,terrainH(e.x,e.z)+0.4,e.z); g._blob.visible=vis&&!(e===human&&viewMode==='fpv'); }
+            g._blob.position.set(e.x,terrainH(e.x,e.z)+0.4,e.z); g._blob.visible=vis&&!(e===human&&(viewMode==='fpv'||scoped)); }
             // army car: place, steer, aim the turret at the driver's look
             const cg=car.mesh; cg.position.set(car.x,car.y,car.z); cg.rotation.y=car.yaw;
             cg._turret.rotation.y=(human?human.yaw:0)-car.yaw; cg._gun.rotation.x=human?Math.max(-0.5,Math.min(0.5,human.pitch*0.7)):0;
@@ -1161,6 +1173,7 @@
             if(human.inDrone&&drone.active){ const dy=drone.yaw,fx=Math.sin(dy),fz=Math.cos(dy); camera.position.set(drone.x-fx*48,drone.y+26,drone.z-fz*48); camera.lookAt(drone.x+fx*36,drone.y-4,drone.z+fz*36); return; }
             if(human.inGun&&human.gun){ const g=human.gun,fx=Math.sin(human.yaw),fz=Math.cos(human.yaw); const ey=g.y+30; camera.position.set(g.x-fx*36,ey+12-human.pitch*22,g.z-fz*36); camera.lookAt(g.x+fx*64,ey+human.pitch*64,g.z+fz*64); return; }
             const f={x:Math.sin(human.yaw),z:Math.cos(human.yaw)},cr=human.crouch?CROUCH_DROP:0;
+            if(scoped){ const eye=human.y+EYE_Y-cr,d=aimDir(human); camera.position.set(human.x+f.x*2.5,eye+1.5,human.z+f.z*2.5); camera.lookAt(human.x+d.x*60,eye+1.5+d.y*60,human.z+d.z*60); return; }   // gun scope: first-person down the sights
             if(viewMode==='fpv'&&fpvBullet&&bullets.indexOf(fpvBullet)!==-1){ const eye=human.y+EYE_Y-cr,d=aimDir(human); camera.position.set(human.x+f.x*1.5,eye+1.5,human.z+f.z*1.5); camera.lookAt(human.x+d.x*60,eye+1.5+d.y*60,human.z+d.z*60); return; }
             const cd=human.inCar?92:CAM_DIST, ch=human.inCar?80:CAM_HEIGHT;
             const camX=human.x-f.x*cd,camZ=human.z-f.z*cd; let camY=human.y+ch-cr-human.pitch*26; const gc=terrainH(camX,camZ)+7; if(camY<gc) camY=gc;
@@ -1217,7 +1230,7 @@
             gems=0; SHOP.helmet=SHOP.boots=SHOP.rapid=false; nearArmoury=false; elShop.classList.add('hidden');   // gems + purchases clear each match (no save between sessions)
             if(human){ human.speed=RUN_SPEED; clearCombatHelmet(human.mesh); } for(const gm of gems3d) respawnGem(gm);
             assignBuddies(); placeCar(); drone.active=false; drone.dead=false; drone.mesh.visible=false;
-            if(human) human.pitch=0; viewMode='third'; fpvBullet=null; gameOver=false; running=false; elWin.classList.add('hidden'); elPause.classList.add('hidden'); elStart.classList.remove('hidden'); }
+            if(human) human.pitch=0; viewMode='third'; fpvBullet=null; setScope(false); gameOver=false; running=false; elWin.classList.add('hidden'); elPause.classList.add('hidden'); elStart.classList.remove('hidden'); }
 
         // ===================== MAIN LOOP =====================
         setupTeams(); placeCar();

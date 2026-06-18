@@ -58,8 +58,11 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
 ## Weapons & combat
 - **Soldier** model: olive uniform, vest, helmet with team-coloured band, backpack,
   boots; carries a rifle (the pistol) and a **shoulder-mounted rocket launcher**.
-- **Pistol bullets** — fast (≈1200 u/s, dodgeable at range), shooting snaps to the
+- **Pistol bullets** — very fast (≈4800 u/s, dodgeable at range), shooting snaps to the
   first-person bullet-cam.
+- **5× scope zoom** — **double-click** (desktop) or **double-tap FIRE** (touch) to look down
+  a gun scope: the view magnifies **5×** with a scope reticle, and you keep aiming as normal.
+  Double-click / double-tap again to zoom back out.
 - **Rocket launcher (G / 🚀)** — **unlimited ammo, one shot every 10 s**. Fired from
   the shoulder; the rocket now **flies dead straight** (no arc) and reaches **3× as far**,
   **detonating with an area blast** that tags every enemy nearby. HUD shows the reload
@@ -103,7 +106,7 @@ floating move stick · **right side** = swipe to look · on-screen buttons **FIR
   stay out of the economy). The current total is always on screen (**💎 top-right**).
 - **Earning:** **collectible gems** (16 emerald octahedra) float around the island —
   walk over one to bank **+1**, and it instantly **respawns elsewhere** so there's always
-  one to chase. **Tagging an enemy** (bullet or rocket) pays **+3**; **scoring a capture**
+  one to chase. **Tagging an enemy** (bullet or rocket) pays **+1**; **scoring a capture**
   pays **+10**. So both fighting and objectives feed the wallet.
 - **Spending — village armouries:** every village has an **🛡 ARMOURY** (a sandbagged
   bunker with a glowing emblem). Walk within ~90 units and a compact **pit-stop shop**
