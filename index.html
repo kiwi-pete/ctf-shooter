@@ -161,7 +161,7 @@
 
         // ===================== CONFIG =====================
         const ISLAND_LENGTH = 18000, BBOX_W = 9000;
-        const RUN_SPEED = 83.5;
+        const RUN_SPEED = 167;
         const BULLET_SPEED = 2400, BULLET_R = 3, BULLET_RANGE = 3280;   // very fast, dart-like
         // Rocket launcher: unlimited ammo, ONE shot per 10s, lobbed in a gravity arc
         const ROCKET_SPEED = 360, ROCKET_VY0 = 200, ROCKET_GRAV = 160, ROCKET_MAXDIST = 1800, ROCKET_BLAST = 80, ROCKET_CD = 10, ROCKET_R = 5;  // ~2× range, higher arc
@@ -233,10 +233,14 @@
         const Hgrid=new Float32Array(gnx*gnz); const BEACH_W=150;
         function bump(x,z,cx,cz,r,h){ const d2=(x-cx)*(x-cx)+(z-cz)*(z-cz); return h*Math.exp(-d2/(2*r*r)); }
         function hillField(x,z){ let h=20*Math.sin(x*0.0006+1.3)*Math.cos(z*0.00055+0.4)+12*Math.sin(x*0.0014+2.1)*Math.cos(z*0.0012+1.1)+7*Math.sin(x*0.003+0.5)*Math.cos(z*0.0027+2.3)+4*Math.sin(x*0.006+1.9)*Math.cos(z*0.0058+0.7);
-            h+=bump(x,z,360,-960,520,104); h+=bump(x,z,-750,2700,640,90); h+=bump(x,z,1140,-3750,560,124); h+=bump(x,z,-360,6000,560,70);
-            h+=bump(x,z,900,4200,520,80); h+=bump(x,z,-1200,-2400,580,72); h+=bump(x,z,360,1500,460,58); h+=bump(x,z,-720,-5400,540,66);
-            h+=bump(x,z,1200,900,460,124); h+=bump(x,z,-1500,1200,480,100); h+=bump(x,z,1500,-1500,420,134); h+=bump(x,z,1500,-7200,460,82);
-            h+=bump(x,z,1800,-4500,480,110); h+=bump(x,z,2100,-2400,460,116); h+=bump(x,z,-1950,-300,440,100); return h; }
+            h+=bump(x,z,360,-960,520,208); h+=bump(x,z,-750,2700,640,180); h+=bump(x,z,1140,-3750,560,248); h+=bump(x,z,-360,6000,560,140);
+            h+=bump(x,z,900,4200,520,160); h+=bump(x,z,-1200,-2400,580,144); h+=bump(x,z,360,1500,460,116); h+=bump(x,z,-720,-5400,540,132);
+            h+=bump(x,z,1200,900,460,248); h+=bump(x,z,-1500,1200,480,200); h+=bump(x,z,1500,-1500,420,268); h+=bump(x,z,1500,-7200,460,164);
+            h+=bump(x,z,1800,-4500,480,220); h+=bump(x,z,2100,-2400,460,232); h+=bump(x,z,-1950,-300,440,200);
+            h+=bump(x,z,1200,-5100,460,180); h+=bump(x,z,-1500,-4800,480,164); h+=bump(x,z,0,-3300,500,214); h+=bump(x,z,900,-2400,440,150);
+            h+=bump(x,z,-1200,-1500,460,200); h+=bump(x,z,-300,-600,420,238); h+=bump(x,z,-300,-4500,460,140); h+=bump(x,z,2700,-4500,440,172);
+            h+=bump(x,z,-1800,-3000,480,228); h+=bump(x,z,-1500,300,460,190); h+=bump(x,z,-1500,-6000,460,152); h+=bump(x,z,2100,-3300,440,256);
+            h+=bump(x,z,900,-7800,460,130); h+=bump(x,z,-300,-6000,480,170); h+=bump(x,z,1800,1800,500,220); return h; }
         function computeHeight(x,z){ if(!pointInIsland(x,z)){ const d=Math.sqrt(nearestOnBoundary(x,z).d2); return Math.max(-60,-8-d*0.28); }
             const d=Math.sqrt(nearestOnBoundary(x,z).d2); const beach=(function(t){t=Math.max(0,Math.min(1,t/BEACH_W));return t*t*(3-2*t);})(d); return Math.max(0.4,beach*(6+hillField(x,z))); }
         for(let j=0;j<gnz;j++) for(let i=0;i<gnx;i++){ Hgrid[j*gnx+i]=computeHeight(gx0+i*gdx,gz0+j*gdz); }
@@ -251,7 +255,7 @@
                 const hl=Hgrid[j*gnx+Math.max(0,i-1)],hr=Hgrid[j*gnx+Math.min(gnx-1,i+1)],hd=Hgrid[Math.max(0,j-1)*gnx+i],hu=Hgrid[Math.min(gnz-1,j+1)*gnx+i];
                 const slope=Math.hypot((hr-hl)/(2*gdx),(hu-hd)/(2*gdz)); let c;
                 if(h<0.9)c=cSand; else if(h<2.2)c=mix(cFoam,cSand,(h-0.9)/1.3); else if(h<6)c=mix(cSand,cGrass,(h-2.2)/3.8);
-                else if(h<48)c=mix(cGrass,cGrassDk,(h-6)/42); else if(h<78)c=mix(cGrassDk,cRock,(h-48)/30); else c=mix(cRock,cPeak,Math.min(1,(h-78)/40));
+                else if(h<120)c=mix(cGrass,cGrassDk,(h-6)/114); else if(h<230)c=mix(cGrassDk,cRock,(h-120)/110); else c=mix(cRock,cPeak,Math.min(1,(h-230)/90));
                 if(slope>0.55&&h>2.2)c=mix(c,cRock,Math.min(0.85,(slope-0.55)*1.4));
                 if(h>5){ const tt=(h/14)%1; if(tt<0.07||tt>0.93) c=[c[0]*0.84,c[1]*0.84,c[2]*0.84]; }   // subtle contour lines on hills
                 cols.push(c[0],c[1],c[2]); }
@@ -448,7 +452,7 @@
         function forestDensity(x,z){ return 0.40 + 0.48*Math.sin(x*0.0011+1.7)*Math.cos(z*0.0010+0.3) + 0.30*Math.sin(x*0.0025-0.5)*Math.cos(z*0.0028+2.1) + 0.20*Math.sin((x*0.7+z)*0.0017+1.1); }
         (function scatterTrees(){ let n=0,guard=0; const TARGET=isTouch?4000:7300, LIM=TARGET*18; while(n<TARGET && guard<LIM){ guard++; const x=gx0+Math.random()*BBOX_W,z=gz0+Math.random()*ISLAND_LENGTH; if(!pointInIsland(x,z)) continue;
             const y=terrainH(x,z); if(y<1.0||y>120) continue; if(Math.hypot(x-_bB.x,z-_bB.z)<170||Math.hypot(x-_rB.x,z-_rB.z)<170) continue;
-            let d=forestDensity(x,z); if(y>38) d*=Math.max(0,1-(y-38)/32);   // treeline: thin going up the slope, BARE summits (no trees above ~70) so you can climb & look down
+            let d=forestDensity(x,z); if(y>70) d*=Math.max(0,1-(y-70)/50);   // treeline: thin going up the slope, BARE summits (no trees above ~120) so you can climb & look down
             if(Math.random()>=d) continue;   // patchy: groves vs clearings vs firebreaks
             let nc=false; for(const vc of villageCenters){ const dx=x-vc.x,dz=z-vc.z; if(dx*dx+dz*dz<230*230){ nc=true; break; } } if(nc&&(guard%4)!==0) continue;   // thin trees in town cores, keep streets readable
             treePlace.push({x:x,z:z,s:TREE_SCALE*(0.7+((guard*13)%70)/100),palm:(y<6)}); n++; } })();
@@ -910,7 +914,7 @@
         const mm=document.getElementById('minimap'), mmx=mm.getContext('2d'); const MMW=120,MMH=216,MMP=7;
         function mmPt(xn,zn){ return [MMP+xn*(MMW-2*MMP), MMP+(1-zn)*(MMH-2*MMP)]; }
         function w2n(x,z){ return [x/BBOX_W+0.5, 0.5-z/ISLAND_LENGTH]; }
-        const MM_HILLS=[[360,-960],[1140,-3750],[1500,-1500],[1200,900],[2100,-2400],[-1950,-300],[1800,-4500],[900,4200],[-750,2700],[-1500,1200]].map(c=>w2n(c[0],c[1]));
+        const MM_HILLS=[[360,-960],[1140,-3750],[1500,-1500],[1200,900],[2100,-2400],[-1950,-300],[1800,-4500],[900,4200],[-750,2700],[2100,-3300],[0,-3300],[-1800,-3000],[1800,1800],[-300,-600]].map(c=>w2n(c[0],c[1]));
         function mmDot(nx,nz,col,r){ const c=mmPt(nx,nz); mmx.fillStyle=col; mmx.beginPath(); mmx.arc(c[0],c[1],r,0,7); mmx.fill(); }
         // the island outline, hill rings and base markers never move — render them once to an offscreen layer
         const mmStatic=document.createElement('canvas'); mmStatic.width=MMW; mmStatic.height=MMH; let mmStaticReady=false;
